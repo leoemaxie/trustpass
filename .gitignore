@@ -1,0 +1,26 @@
+# Environment variables & secrets
+.env
+*.env.local
+*.key
+*.pem
+
+# Rust build artifacts
+core/target/
+**/target/
+Cargo.lock
+
+# Go binaries & vendor
+services/bin/
+*.exe
+*.test
+
+# Node / Frontend
+node_modules/
+dist/
+.svelte-kit/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

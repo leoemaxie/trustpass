@@ -12,7 +12,7 @@ Keep this table current — update it whenever a checkpoint's status changes. Th
 
 | # | Checkpoint | Status | Last touched |
 |---|---|---|---|
-| 1 | Credential core, no proofs yet | not started | — |
+| 1 | Credential core, no proofs yet | acceptance criteria met | 2026-09-13 |
 | 2 | BBS+ selective disclosure, end to end | not started | — |
 | 3 | Session tokens and replay protection | not started | — |
 | 4 | Receipts | not started | — |
@@ -60,3 +60,19 @@ Copy this template for each new session:
 **What changed:** Initial documentation set created.
 **Open SPEC-GAP flags introduced this session:** none
 **Next step:** Begin Checkpoint 1 — set up `proof-core` Rust project skeleton, implement `did:key` generation, VC-DM credential struct, and schema validation against the two seed schemas (`NationalIDCredential` v1, `StudentCredential` v1) defined in the build spec Section 5.1.
+
+## Session 2026-09-13 — kick-off-cp1
+**Model:** Gemini 3.8 Flash
+**Checkpoint worked on:** 1 — Credential core, no proofs yet
+**Status:** acceptance criteria met
+**What changed:**
+- Scaffolding of `core` Rust crate (`trustpass-core`): BBS+ key generation, BLS12-381 G2 `did:key` generation and parsing without external ledgers, generic predicate engine (`evaluatePredicate(attribute, operator, threshold)`), W3C VC-DM 2.0 credential issuance, serialization/deserialization, and signature verification.
+- Implemented `credential_schemas` validation and seed schemas (`NationalIDCredential` v1, `StudentCredential` v1).
+- Implemented PostgreSQL migration 001 (`001_initial_schema.sql`) and SQL/JSON seed data in `db/`.
+- Created Go `schema-registry` microservice with thread-safe repository, health check (`/healthz`), versioned schema lookup/creation HTTP endpoints, and unit tests.
+- Created `.env.example` with documented environment configurations.
+- Created `docs/ARCHITECTURE.md` citing exact cryptographic crate versions (`bbs_plus 0.25.0`, `ark-bls12-381 0.4.0`, etc.).
+- Created and executed `core/tests/checkpoint1_acceptance.rs`, verifying end-to-end synthetic `NationalIDCredential` issuance, schema validation, JSON roundtrip, signature verification, and negative tampering tests.
+**Open SPEC-GAP flags introduced this session:** none
+**Next step:** Begin Checkpoint 2 — BBS+ selective disclosure, end to end for one claim (age >= 18 via `BEFORE_DATE` on `dateOfBirth`). Implement PoK of BBS+ signature revealing only the predicate outcome, wire through `issuer-api` and `verifier-api`.
+
