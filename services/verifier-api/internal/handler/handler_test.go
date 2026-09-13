@@ -34,7 +34,7 @@ func TestVerifierHandler(t *testing.T) {
 
 	coreClient := shared.NewCoreClient(mockCore.URL)
 	store := session.NewMemoryStore()
-	h := handler.NewVerifierHandler(coreClient, store, 120*time.Second)
+	h := handler.NewVerifierHandler(coreClient, nil, store, 120*time.Second)
 
 	// 1. Test healthz
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)

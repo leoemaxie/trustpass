@@ -82,3 +82,15 @@ type ClaimRequest struct {
 	Operator      PredicateOp     `json:"operator"`
 	Value         json.RawMessage `json:"value"`
 }
+
+// VerificationReceipt matches Section 5.5 of spec.
+// PRIME DIRECTIVE: MUST NOT contain holder identity, holder DID,
+// any credential attribute value, or raw session tokens.
+type VerificationReceipt struct {
+	ID               string       `json:"id"`
+	VerifierID       string       `json:"verifierId"`
+	ClaimRequest     ClaimRequest `json:"claimRequest"`
+	Result           bool         `json:"result"`
+	Timestamp        time.Time    `json:"timestamp"`
+	SessionTokenHash string       `json:"sessionTokenHash"`
+}

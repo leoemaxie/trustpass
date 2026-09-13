@@ -11,19 +11,26 @@ import (
 )
 
 type VerifierHandler struct {
-	coreClient   *shared.CoreClient
-	sessionStore session.Store
-	defaultTTL   time.Duration
+	coreClient    *shared.CoreClient
+	receiptClient *shared.ReceiptClient
+	sessionStore  session.Store
+	defaultTTL    time.Duration
 }
 
-func NewVerifierHandler(coreClient *shared.CoreClient, sessionStore session.Store, defaultTTL time.Duration) *VerifierHandler {
+func NewVerifierHandler(
+	coreClient *shared.CoreClient,
+	receiptClient *shared.ReceiptClient,
+	sessionStore session.Store,
+	defaultTTL time.Duration,
+) *VerifierHandler {
 	if defaultTTL <= 0 {
 		defaultTTL = 120 * time.Second
 	}
 	return &VerifierHandler{
-		coreClient:   coreClient,
-		sessionStore: sessionStore,
-		defaultTTL:   defaultTTL,
+		coreClient:    coreClient,
+		receiptClient: receiptClient,
+		sessionStore:  sessionStore,
+		defaultTTL:    defaultTTL,
 	}
 }
 
@@ -73,14 +80,17 @@ func (h *VerifierHandler) HandleCreateSession(w http.ResponseWriter, r *http.Req
 type VerifySubmissionRequest struct {
 	SessionToken string          `json:"sessionToken"`
 	Proof        json.RawMessage `json:"proof"`
+	VerifierID   *string         `json:"verifierId,omitempty"`
 	IssuerDID    *string         `json:"issuerDid,omitempty"`
 }
 
 type VerificationResponse struct {
-	Valid           bool    `json:"valid"`
-	RejectionReason *string `json:"rejectionReason,omitempty"`
-	ErrorMessage    *string `json:"errorMessage,omitempty"`
-	Timestamp       string  `json:"timestamp"`
+	Valid           bool                        `json:"valid"`
+	ReceiptID       *string                     `json:"receiptId,omitempty"`
+	Receipt         *shared.VerificationReceipt `json:"receipt,omitempty"`
+	RejectionReason *string                     `json:"rejectionReason,omitempty"`
+	ErrorMessage    *string                     `json:"errorMessage,omitempty"`
+	Timestamp       string                      `json:"timestamp"`
 }
 
 func (h *VerifierHandler) HandleVerify(w http.ResponseWriter, r *http.Request) {
@@ -96,9 +106,13 @@ func (h *VerifierHandler) HandleVerify(w http.ResponseWriter, r *http.Request) {
 	}
 
 	nowStr := time.Now().UTC().Format(time.RFC3339)
+	verifierID := "verifier-default"
+	if req.VerifierID != nil && *req.VerifierID != "" {
+		verifierID = *req.VerifierID
+	}
 
 	// 1. Atomic session token consumption (checks existence, expiration, and prior consumption atomically)
-	_, err := h.sessionStore.Consume(req.SessionToken)
+	sess, err := h.sessionStore.Consume(req.SessionToken)
 	if err != nil {
 		var reason string
 		switch {
@@ -125,36 +139,49 @@ func (h *VerifierHandler) HandleVerify(w http.ResponseWriter, r *http.Request) {
 		ExpectedSessionToken: req.SessionToken,
 		IssuerDID:            req.IssuerDID,
 	})
+
+	var resultValid bool
+	var rejectionReason *string
+	var errorMsg *string
+
 	if err != nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
 		reason := "SignatureInvalid"
 		msg := err.Error()
-		_ = json.NewEncoder(w).Encode(VerificationResponse{
-			Valid:           false,
-			RejectionReason: &reason,
-			ErrorMessage:    &msg,
-			Timestamp:       nowStr,
-		})
-		return
+		resultValid = false
+		rejectionReason = &reason
+		errorMsg = &msg
+	} else if !coreResp.Valid {
+		resultValid = false
+		rejectionReason = coreResp.RejectionReason
+		errorMsg = coreResp.ErrorMessage
+	} else {
+		resultValid = true
 	}
 
-	if !coreResp.Valid {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(VerificationResponse{
-			Valid:           false,
-			RejectionReason: coreResp.RejectionReason,
-			ErrorMessage:    coreResp.ErrorMessage,
-			Timestamp:       nowStr,
+	// 3. Record non-personal verification receipt via receipt-service
+	var recordedReceipt *shared.VerificationReceipt
+	var receiptID *string
+	if h.receiptClient != nil {
+		receipt, err := h.receiptClient.RecordReceipt(shared.RecordReceiptRequest{
+			VerifierID:   verifierID,
+			ClaimRequest: sess.ClaimRequest,
+			Result:       resultValid,
+			SessionToken: req.SessionToken,
 		})
-		return
+		if err == nil && receipt != nil {
+			recordedReceipt = receipt
+			receiptID = &receipt.ID
+		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(VerificationResponse{
-		Valid:     true,
-		Timestamp: nowStr,
+		Valid:           resultValid,
+		ReceiptID:       receiptID,
+		Receipt:         recordedReceipt,
+		RejectionReason: rejectionReason,
+		ErrorMessage:    errorMsg,
+		Timestamp:       nowStr,
 	})
 }

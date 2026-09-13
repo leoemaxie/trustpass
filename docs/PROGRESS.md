@@ -15,7 +15,7 @@ Keep this table current — update it whenever a checkpoint's status changes. Th
 | 1 | Credential core, no proofs yet | acceptance criteria met | 2026-09-13 |
 | 2 | BBS+ selective disclosure, end to end | acceptance criteria met | 2026-09-13 |
 | 3 | Session tokens and replay protection | acceptance criteria met | 2026-09-13 |
-| 4 | Receipts | not started | — |
+| 4 | Receipts | acceptance criteria met | 2026-09-13 |
 | 5 | Revocation and expiry | not started | — |
 | 6 | Generalize to second/third predicates | not started | — |
 | 7 | Noir circuit for flagship age claim | not started | — |
@@ -100,13 +100,28 @@ Copy this template for each new session:
 **What changed:**
 - Implemented atomic `Consume(token string)` in `verifier-api/internal/session` ensuring atomic state transition to prevent race condition replays.
 - Updated `verifier-api/internal/handler/handler.go` to strictly enforce atomic single-use session token consumption.
-- Created `core/tests/checkpoint3_acceptance.rs` demonstrating the complete lifecycle and all three required rejection cases:
+- Created `core/tests/replay_protection_test.rs` demonstrating the complete lifecycle and all three required rejection cases:
   1. `SessionTokenExpired`: expired TTL or token mismatch.
   2. `SessionTokenReused`: attempted reuse of an already-consumed single-use token.
   3. `SignatureInvalid`: modified Schnorr commitments / bit-flipped proof bytes or unauthorized issuer key.
-- Created `services/verifier-api/internal/handler/checkpoint3_test.go` verifying all three typed rejection responses across the live Go HTTP API.
+- Created `services/verifier-api/internal/handler/replay_test.go` verifying all three typed rejection responses across the live Go HTTP API.
 **Open SPEC-GAP flags introduced this session:** none
 **Next step:** Begin Checkpoint 4 — Receipts. Implement `receipt-service` and non-personal receipt generation/storage (`verification_receipts`) on every completed verification, proving the check occurred with zero personal data.
+
+## Session 2026-09-13 — cp4-receipts
+**Model:** Gemini 3.8 Flash
+**Checkpoint worked on:** 4 — Receipts
+**Status:** acceptance criteria met
+**What changed:**
+- Implemented `services/receipt-service` with thread-safe repository, health check (`/healthz`), and endpoints `POST /receipts`, `GET /receipts`, `GET /receipts/{id}`.
+- Added `VerificationReceipt` and `HashSessionToken` in `services/shared/types.go` matching Section 5.5 of spec.
+- Added `services/shared/receiptclient.go` HTTP client wrapper.
+- Integrated `receipt-service` into `verifier-api`: every completed verification automatically records a receipt without personal data and returns `receiptId`.
+- Created unit tests in Go (`services/receipt-service/internal/handler/handler_test.go` and `services/verifier-api/internal/handler/receipt_flow_test.go`).
+- Created Rust acceptance test `core/tests/receipt_privacy_audit_test.rs` auditing all keys of generated receipts to guarantee zero holder personal identifiers exist.
+**Open SPEC-GAP flags introduced this session:** none
+**Next step:** Begin Checkpoint 5 — Revocation and expiry. Implement credential revocation checking and expiry validation during proof generation and verification (`CheckRevocation`, `CredentialRevoked`, `CredentialExpired`).
+
 
 
 

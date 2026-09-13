@@ -50,7 +50,7 @@ func TestReplayProtectionAndSessionExpiration(t *testing.T) {
 
 	coreClient := shared.NewCoreClient(mockCore.URL)
 	store := session.NewMemoryStore()
-	h := handler.NewVerifierHandler(coreClient, store, 2*time.Second)
+	h := handler.NewVerifierHandler(coreClient, nil, store, 2*time.Second)
 
 	// Create valid session
 	claimReq := shared.ClaimRequest{

@@ -31,9 +31,15 @@ func main() {
 		}
 	}
 
+	receiptURL := os.Getenv("RECEIPT_SERVICE_URL")
+	if receiptURL == "" {
+		receiptURL = "http://localhost:8084"
+	}
+
 	coreClient := shared.NewCoreClient(coreURL)
+	receiptClient := shared.NewReceiptClient(receiptURL)
 	sessionStore := session.NewMemoryStore()
-	h := handler.NewVerifierHandler(coreClient, sessionStore, time.Duration(ttlSec)*time.Second)
+	h := handler.NewVerifierHandler(coreClient, receiptClient, sessionStore, time.Duration(ttlSec)*time.Second)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", h.Healthz)
