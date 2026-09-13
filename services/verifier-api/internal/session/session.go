@@ -28,6 +28,7 @@ type Store interface {
 	CreateSession(claim shared.ClaimRequest, ttl time.Duration) (*VerificationSession, error)
 	Get(token string) (*VerificationSession, error)
 	MarkConsumed(token string) error
+	Consume(token string) (*VerificationSession, error)
 }
 
 type MemoryStore struct {
@@ -95,4 +96,28 @@ func (s *MemoryStore) MarkConsumed(token string) error {
 	}
 	sess.Consumed = true
 	return nil
+}
+
+// Consume atomically verifies that the session token exists, is unexpired, and is unconsumed,
+// and marks it as consumed in a single atomic transaction. This prevents concurrent replay race conditions.
+func (s *MemoryStore) Consume(token string) (*VerificationSession, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	sess, exists := s.sessions[token]
+	if !exists {
+		return nil, ErrSessionNotFound
+	}
+
+	if time.Now().UTC().After(sess.ExpiresAt) {
+		return nil, ErrSessionExpired
+	}
+
+	if sess.Consumed {
+		return nil, ErrSessionReused
+	}
+
+	// Atomically mark consumed
+	sess.Consumed = true
+	return sess, nil
 }

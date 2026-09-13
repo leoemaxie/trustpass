@@ -14,7 +14,7 @@ Keep this table current — update it whenever a checkpoint's status changes. Th
 |---|---|---|---|
 | 1 | Credential core, no proofs yet | acceptance criteria met | 2026-09-13 |
 | 2 | BBS+ selective disclosure, end to end | acceptance criteria met | 2026-09-13 |
-| 3 | Session tokens and replay protection | not started | — |
+| 3 | Session tokens and replay protection | acceptance criteria met | 2026-09-13 |
 | 4 | Receipts | not started | — |
 | 5 | Revocation and expiry | not started | — |
 | 6 | Generalize to second/third predicates | not started | — |
@@ -92,5 +92,21 @@ Copy this template for each new session:
 - Created and passed `core/tests/checkpoint2_acceptance.rs`, proving adult pass (DOB 1999-07-20 >= 18 with 0 personal attributes revealed), minor rejection (`PredicateNotSatisfied`), tampered proof rejection (`SignatureInvalid`), and mismatched token rejection (`SessionTokenExpired`).
 **Open SPEC-GAP flags introduced this session:** none
 **Next step:** Begin Checkpoint 3 — Session tokens and replay protection. Expand verification session tests to demonstrate all three rejection cases explicitly (expired, reused, tampered signature) through live HTTP services and persistence.
+
+## Session 2026-09-13 — cp3-session-tokens-replay
+**Model:** Gemini 3.8 Flash
+**Checkpoint worked on:** 3 — Session tokens and replay protection
+**Status:** acceptance criteria met
+**What changed:**
+- Implemented atomic `Consume(token string)` in `verifier-api/internal/session` ensuring atomic state transition to prevent race condition replays.
+- Updated `verifier-api/internal/handler/handler.go` to strictly enforce atomic single-use session token consumption.
+- Created `core/tests/checkpoint3_acceptance.rs` demonstrating the complete lifecycle and all three required rejection cases:
+  1. `SessionTokenExpired`: expired TTL or token mismatch.
+  2. `SessionTokenReused`: attempted reuse of an already-consumed single-use token.
+  3. `SignatureInvalid`: modified Schnorr commitments / bit-flipped proof bytes or unauthorized issuer key.
+- Created `services/verifier-api/internal/handler/checkpoint3_test.go` verifying all three typed rejection responses across the live Go HTTP API.
+**Open SPEC-GAP flags introduced this session:** none
+**Next step:** Begin Checkpoint 4 — Receipts. Implement `receipt-service` and non-personal receipt generation/storage (`verification_receipts`) on every completed verification, proving the check occurred with zero personal data.
+
 
 

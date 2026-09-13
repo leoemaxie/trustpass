@@ -97,8 +97,8 @@ func (h *VerifierHandler) HandleVerify(w http.ResponseWriter, r *http.Request) {
 
 	nowStr := time.Now().UTC().Format(time.RFC3339)
 
-	// 1. Session token validation (check expired / reused)
-	_, err := h.sessionStore.Get(req.SessionToken)
+	// 1. Atomic session token consumption (checks existence, expiration, and prior consumption atomically)
+	_, err := h.sessionStore.Consume(req.SessionToken)
 	if err != nil {
 		var reason string
 		switch {
@@ -150,9 +150,6 @@ func (h *VerifierHandler) HandleVerify(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
-	// 3. Mark session as consumed to prevent replay attacks
-	_ = h.sessionStore.MarkConsumed(req.SessionToken)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
