@@ -69,3 +69,29 @@ TrustPass implements genuine Proof of Knowledge of BBS+ signatures using `bbs_pl
    - The resulting challenge `c = H(chal_bytes)` cryptographically ties the proof to that exact verification session.
    - Any attempt to replay a proof against a different session token or after expiration causes verification failure (`SessionTokenExpired` or `SessionTokenReused`).
 
+---
+
+## Dual-Proof Architecture: BBS+ and Noir ZK Circuits
+
+TrustPass provides a dual-proof architecture demonstrating both multi-message signature proofs and zero-knowledge arithmetic circuits side by side.
+
+As specified in the build architecture:
+> **"The proof engine is pluggable — production could migrate every claim to a dedicated ZK circuit; this build demonstrates both approaches side by side."**
+
+### 1. General Mechanism: BBS+ Selective Disclosure
+- Implemented natively in pure Rust using `docknetwork/crypto`.
+- Issuer signs multiple claims with a single signature over BLS12-381.
+- Holder presents a Proof of Knowledge (PoK) of the signature with undisclosed attributes blinded by fresh Schnorr randomness.
+- Generalizes across all credential types (National ID, Student Credentials, etc.) with sub-second performance on commodity hardware.
+
+### 2. General Zero-Knowledge Predicate Circuit: Noir (`generic_predicate`)
+- Located in `core/circuits/generic_predicate/`.
+- Written in Aztec Network's Noir domain-specific language.
+- Implements arithmetic constraints for generic predicate evaluation:
+  - `OP_GTE`: Numeric greater-than-or-equal constraint (e.g. GPA $\ge 3.50$, Age $\ge 18$).
+  - `OP_LTE`: Numeric less-than-or-equal constraint (e.g. Date of Birth on or before cutoff date).
+  - `OP_EQ`: Structural and cryptographic hash equality.
+  - `OP_IN_RANGE`: Two-sided interval range checks.
+- Compiles to ACIR intermediate representation via `nargo` and proves/verifies via Barretenberg backend.
+- Purely generic: zero claim-specific functions (`checkAge()`, `isNigerian()`, etc.) exist anywhere in the codebase.
+
