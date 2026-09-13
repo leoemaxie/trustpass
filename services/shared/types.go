@@ -94,3 +94,23 @@ type VerificationReceipt struct {
 	Timestamp        time.Time    `json:"timestamp"`
 	SessionTokenHash string       `json:"sessionTokenHash"`
 }
+
+// RevokeCredentialRequest matches Section 6.5 of spec
+type RevokeCredentialRequest struct {
+	CredentialID string  `json:"credentialId"`
+	Reason       *string `json:"reason,omitempty"`
+}
+
+// RevocationRecord represents an issuer revocation entry
+type RevocationRecord struct {
+	CredentialID string  `json:"credentialId"`
+	RevokedAt    string  `json:"revokedAt"`
+	Reason       *string `json:"reason,omitempty"`
+}
+
+// RevocationCheckResponse represents the revocation status of a credential
+type RevocationCheckResponse struct {
+	Revoked      bool              `json:"revoked"`
+	CredentialID string            `json:"credentialId"`
+	Record       *RevocationRecord `json:"record,omitempty"`
+}

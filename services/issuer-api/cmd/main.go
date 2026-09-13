@@ -27,7 +27,8 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", h.Healthz)
 	mux.HandleFunc("/credentials/issue", h.HandleIssue)
-	mux.HandleFunc("/credentials", h.HandleList)
+	mux.HandleFunc("/credentials", h.HandleCredentialsRoute)
+	mux.HandleFunc("/credentials/", h.HandleCredentialsRoute)
 
 	addr := fmt.Sprintf(":%s", port)
 	log.Printf("Starting issuer-api on %s (connecting to core at %s)...", addr, coreURL)

@@ -9,9 +9,11 @@ use crate::bbs::keys::{
     generate_keypair_with_seed, generate_signature_params_with_seed, BbsKeypair, BbsSignatureParams,
 };
 use crate::bbs::proof::{
-    generate_selective_disclosure_proof, verify_selective_disclosure_proof, SelectiveDisclosureProof,
+    generate_selective_disclosure_proof_with_metadata, verify_selective_disclosure_proof_ext,
+    SelectiveDisclosureProof,
 };
 use crate::credential::did::DidKey;
+use crate::credential::revocation::{RevocationRecord, RevocationRegistry};
 use crate::credential::schema::{seed_national_id_schema, seed_student_schema, CredentialSchema};
 use crate::credential::vc::VerifiableCredential;
 use crate::error::{CoreError, VerificationRejectionReason};
@@ -23,6 +25,7 @@ pub struct CoreState {
     pub keypair: Arc<BbsKeypair>,
     pub params: Arc<BbsSignatureParams>,
     pub schemas: HashMap<String, CredentialSchema>,
+    pub revocation_registry: Arc<RevocationRegistry>,
 }
 
 impl CoreState {
@@ -45,6 +48,7 @@ impl CoreState {
             keypair: Arc::new(keypair),
             params: Arc::new(params),
             schemas,
+            revocation_registry: Arc::new(RevocationRegistry::new()),
         }
     }
 }
@@ -85,6 +89,28 @@ pub struct VerifyProofApiResponse {
     pub rejection_reason: Option<VerificationRejectionReason>,
     #[serde(rename = "errorMessage", skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct RevokeCredentialApiRequest {
+    #[serde(rename = "credentialId")]
+    pub credential_id: String,
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CheckRevocationApiRequest {
+    #[serde(rename = "credentialId")]
+    pub credential_id: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RevocationCheckApiResponse {
+    pub revoked: bool,
+    #[serde(rename = "credentialId")]
+    pub credential_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub record: Option<RevocationRecord>,
 }
 
 pub fn run_server(port: u16, state: CoreState) {
@@ -210,8 +236,36 @@ pub fn run_server(port: u16, state: CoreState) {
                             }
                         };
 
+                        // Client-side Expiry Check
+                        if proof_req.credential.is_expired(&Utc::now()) {
+                            let res = VerifyProofApiResponse {
+                                valid: false,
+                                rejection_reason: Some(VerificationRejectionReason::CredentialExpired),
+                                error_message: Some("Credential has expired".to_string()),
+                            };
+                            let response = Response::from_string(serde_json::to_string(&res).unwrap())
+                                .with_status_code(StatusCode(400))
+                                .with_header(json_header.clone());
+                            let _ = request.respond(response);
+                            continue;
+                        }
+
+                        // Client-side Revocation Check
+                        if state.revocation_registry.is_revoked(&proof_req.credential.id) {
+                            let res = VerifyProofApiResponse {
+                                valid: false,
+                                rejection_reason: Some(VerificationRejectionReason::CredentialRevoked),
+                                error_message: Some("Credential has been revoked by issuer".to_string()),
+                            };
+                            let response = Response::from_string(serde_json::to_string(&res).unwrap())
+                                .with_status_code(StatusCode(400))
+                                .with_header(json_header.clone());
+                            let _ = request.respond(response);
+                            continue;
+                        }
+
                         let empty_reveal = BTreeSet::new();
-                        match generate_selective_disclosure_proof(
+                        match generate_selective_disclosure_proof_with_metadata(
                             schema,
                             &proof_req.credential.credential_subject.claims,
                             &sig,
@@ -220,6 +274,9 @@ pub fn run_server(port: u16, state: CoreState) {
                             &proof_req.claim_request,
                             &proof_req.session_token,
                             &empty_reveal,
+                            Some(&proof_req.credential.id),
+                            proof_req.credential.expiration_date.as_deref(),
+                            None,
                         ) {
                             Ok(sd_proof) => {
                                 let res_str = serde_json::to_string(&sd_proof).unwrap();
@@ -282,11 +339,13 @@ pub fn run_server(port: u16, state: CoreState) {
                             }
                         };
 
-                        match verify_selective_disclosure_proof(
+                        match verify_selective_disclosure_proof_ext(
                             &verify_req.proof,
                             &pk,
                             &state.params,
                             &verify_req.expected_session_token,
+                            Some(Utc::now()),
+                            Some(|id: &str| state.revocation_registry.is_revoked(id)),
                         ) {
                             Ok(()) => {
                                 let res = VerifyProofApiResponse {
@@ -322,6 +381,58 @@ pub fn run_server(port: u16, state: CoreState) {
                                 let _ = request.respond(response);
                             }
                         }
+                    }
+                }
+            }
+
+            (Method::Post, "/api/v1/revocation/revoke") => {
+                let req_res: std::result::Result<RevokeCredentialApiRequest, _> = serde_json::from_slice(&body_bytes);
+                match req_res {
+                    Err(e) => {
+                        let err_res = json!({"error": format!("Invalid JSON body: {}", e)});
+                        let response = Response::from_string(err_res.to_string())
+                            .with_status_code(StatusCode(400))
+                            .with_header(json_header.clone());
+                        let _ = request.respond(response);
+                    }
+                    Ok(revoke_req) => {
+                        let record = state.revocation_registry.revoke(&revoke_req.credential_id, revoke_req.reason);
+                        let res = json!({
+                            "success": true,
+                            "credentialId": record.credential_id,
+                            "revokedAt": record.revoked_at,
+                            "reason": record.reason,
+                        });
+                        let response = Response::from_string(res.to_string())
+                            .with_status_code(StatusCode(200))
+                            .with_header(json_header.clone());
+                        let _ = request.respond(response);
+                    }
+                }
+            }
+
+            (Method::Post, "/api/v1/revocation/check") => {
+                let req_res: std::result::Result<CheckRevocationApiRequest, _> = serde_json::from_slice(&body_bytes);
+                match req_res {
+                    Err(e) => {
+                        let err_res = json!({"error": format!("Invalid JSON body: {}", e)});
+                        let response = Response::from_string(err_res.to_string())
+                            .with_status_code(StatusCode(400))
+                            .with_header(json_header.clone());
+                        let _ = request.respond(response);
+                    }
+                    Ok(check_req) => {
+                        let is_rev = state.revocation_registry.is_revoked(&check_req.credential_id);
+                        let record = state.revocation_registry.get(&check_req.credential_id);
+                        let res = RevocationCheckApiResponse {
+                            revoked: is_rev,
+                            credential_id: check_req.credential_id,
+                            record,
+                        };
+                        let response = Response::from_string(serde_json::to_string(&res).unwrap())
+                            .with_status_code(StatusCode(200))
+                            .with_header(json_header.clone());
+                        let _ = request.respond(response);
                     }
                 }
             }

@@ -4,6 +4,7 @@ use ark_ff::PrimeField;
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize};
 use bbs_plus::proof::{PoKOfSignatureG1Proof, PoKOfSignatureG1Protocol};
 use bbs_plus::setup::{PublicKeyG2, SignatureParamsG1};
+use chrono::{DateTime, Utc};
 use dock_crypto_utils::signature::MessageOrBlinding;
 use rand_chacha::ChaCha20Rng;
 use rand::SeedableRng;
@@ -40,6 +41,14 @@ pub struct SelectiveDisclosureProof {
     /// Whether the evaluated predicate held on the credential
     #[serde(rename = "predicateSatisfied")]
     pub predicate_satisfied: bool,
+
+    /// Credential instance identifier (for revocation status checking)
+    #[serde(rename = "credentialId", skip_serializing_if = "Option::is_none", default)]
+    pub credential_id: Option<String>,
+
+    /// Credential expiration date in RFC 3339 format
+    #[serde(rename = "expirationDate", skip_serializing_if = "Option::is_none", default)]
+    pub expiration_date: Option<String>,
 }
 
 /// Computes a challenge scalar from challenge bytes using SHA-256
@@ -61,6 +70,47 @@ pub fn generate_selective_disclosure_proof(
     session_token: &str,
     reveal_indices: &BTreeSet<usize>,
 ) -> Result<SelectiveDisclosureProof> {
+    generate_selective_disclosure_proof_with_metadata(
+        schema,
+        claims,
+        signature,
+        params,
+        pk,
+        claim,
+        session_token,
+        reveal_indices,
+        None,
+        None,
+        None,
+    )
+}
+
+/// Generates a BBS+ selective-disclosure proof with credential metadata and client-side expiry check
+pub fn generate_selective_disclosure_proof_with_metadata(
+    schema: &CredentialSchema,
+    claims: &HashMap<String, Value>,
+    signature: &BbsSignature,
+    params: &SignatureParamsG1<Bls12_381>,
+    pk: &PublicKeyG2<Bls12_381>,
+    claim: &ClaimRequest,
+    session_token: &str,
+    reveal_indices: &BTreeSet<usize>,
+    credential_id: Option<&str>,
+    expiration_date: Option<&str>,
+    reference_time: Option<DateTime<Utc>>,
+) -> Result<SelectiveDisclosureProof> {
+    // 0. Client-side Expiration Check: Expired credentials fail proof generation
+    if let Some(exp_str) = expiration_date {
+        if let Ok(exp_dt) = DateTime::parse_from_rfc3339(exp_str) {
+            let now = reference_time.unwrap_or_else(Utc::now);
+            if now > exp_dt.with_timezone(&Utc) {
+                return Err(CoreError::VerificationFailed(
+                    VerificationRejectionReason::CredentialExpired,
+                ));
+            }
+        }
+    }
+
     // 1. Evaluate the predicate against the target attribute
     let target_attr = claims.get(&claim.attribute_name).ok_or_else(|| {
         CoreError::MissingAttribute(format!(
@@ -138,6 +188,8 @@ pub fn generate_selective_disclosure_proof(
         claim_request: claim.clone(),
         session_token: session_token.to_string(),
         predicate_satisfied: true,
+        credential_id: credential_id.map(|s| s.to_string()),
+        expiration_date: expiration_date.map(|s| s.to_string()),
     })
 }
 
@@ -148,6 +200,28 @@ pub fn verify_selective_disclosure_proof(
     params: &SignatureParamsG1<Bls12_381>,
     expected_session_token: &str,
 ) -> Result<()> {
+    verify_selective_disclosure_proof_ext(
+        proof_envelope,
+        pk,
+        params,
+        expected_session_token,
+        None,
+        None::<fn(&str) -> bool>,
+    )
+}
+
+/// Verifies a BBS+ selective-disclosure proof with optional expiration and revocation checks
+pub fn verify_selective_disclosure_proof_ext<F>(
+    proof_envelope: &SelectiveDisclosureProof,
+    pk: &PublicKeyG2<Bls12_381>,
+    params: &SignatureParamsG1<Bls12_381>,
+    expected_session_token: &str,
+    reference_time: Option<DateTime<Utc>>,
+    revocation_checker: Option<F>,
+) -> Result<()>
+where
+    F: Fn(&str) -> bool,
+{
     // 1. Replay / Session token verification
     if proof_envelope.session_token != expected_session_token {
         return Err(CoreError::VerificationFailed(
@@ -162,7 +236,30 @@ pub fn verify_selective_disclosure_proof(
         ));
     }
 
-    // 3. Deserialize PoK proof
+    // 3. Server-side Expiry Verification
+    if let Some(ref exp_str) = proof_envelope.expiration_date {
+        if let Ok(exp_dt) = DateTime::parse_from_rfc3339(exp_str) {
+            let now = reference_time.unwrap_or_else(Utc::now);
+            if now > exp_dt.with_timezone(&Utc) {
+                return Err(CoreError::VerificationFailed(
+                    VerificationRejectionReason::CredentialExpired,
+                ));
+            }
+        }
+    }
+
+    // 4. Server-side Revocation Verification: CheckRevocation is called as part of VerifyProof
+    if let Some(ref cred_id) = proof_envelope.credential_id {
+        if let Some(ref checker) = revocation_checker {
+            if checker(cred_id) {
+                return Err(CoreError::VerificationFailed(
+                    VerificationRejectionReason::CredentialRevoked,
+                ));
+            }
+        }
+    }
+
+    // 5. Deserialize PoK proof
     let proof_bytes = hex::decode(&proof_envelope.proof_bytes_hex).map_err(|_| {
         CoreError::VerificationFailed(VerificationRejectionReason::SignatureInvalid)
     })?;
@@ -170,7 +267,7 @@ pub fn verify_selective_disclosure_proof(
     let proof = BbsProof::deserialize_compressed(&proof_bytes[..])
         .map_err(|_| CoreError::VerificationFailed(VerificationRejectionReason::SignatureInvalid))?;
 
-    // 4. Reconstruct revealed messages map
+    // 6. Reconstruct revealed messages map
     let mut revealed_map: BTreeMap<usize, Fr> = BTreeMap::new();
     for (idx, val_hex) in &proof_envelope.revealed_messages {
         let val_bytes = hex::decode(val_hex).map_err(|_| {
@@ -182,7 +279,7 @@ pub fn verify_selective_disclosure_proof(
         revealed_map.insert(*idx, scalar);
     }
 
-    // 5. Recompute challenge
+    // 7. Recompute challenge
     let mut chal_bytes = Vec::new();
     pk.serialize_compressed(&mut chal_bytes)
         .map_err(|e| CoreError::CryptoError(e.to_string()))?;
@@ -199,7 +296,7 @@ pub fn verify_selective_disclosure_proof(
 
     let challenge = compute_challenge(&chal_bytes);
 
-    // 6. Cryptographic BBS+ PoK verification
+    // 8. Cryptographic BBS+ PoK verification
     proof
         .verify(&revealed_map, &challenge, pk.clone(), params.clone())
         .map_err(|_| CoreError::VerificationFailed(VerificationRejectionReason::SignatureInvalid))
@@ -315,6 +412,93 @@ mod tests {
         match minor_proof_res.err().unwrap() {
             CoreError::VerificationFailed(VerificationRejectionReason::PredicateNotSatisfied) => (),
             other => panic!("Expected PredicateNotSatisfied rejection, got {:?}", other),
+        }
+
+        // Test Checkpoint 5: Revocation and Expiry
+        let cred_id = "urn:uuid:test-credential-revocation-001";
+        let future_exp = (Utc::now() + Duration::days(30)).to_rfc3339();
+        let past_exp = (Utc::now() - Duration::days(1)).to_rfc3339();
+
+        // 1. Client-side rejection on expired credential
+        let expired_gen_res = generate_selective_disclosure_proof_with_metadata(
+            &schema,
+            &claims_adult,
+            &sig,
+            &params,
+            &keypair.public_key,
+            &claim_age_gte_18,
+            session_token,
+            &empty_revealed,
+            Some(cred_id),
+            Some(&past_exp),
+            None,
+        );
+        assert!(expired_gen_res.is_err());
+        match expired_gen_res.err().unwrap() {
+            CoreError::VerificationFailed(VerificationRejectionReason::CredentialExpired) => (),
+            other => panic!("Expected CredentialExpired, got {:?}", other),
+        }
+
+        // 2. Proof with valid expiration and credential ID succeeds
+        let valid_meta_proof = generate_selective_disclosure_proof_with_metadata(
+            &schema,
+            &claims_adult,
+            &sig,
+            &params,
+            &keypair.public_key,
+            &claim_age_gte_18,
+            session_token,
+            &empty_revealed,
+            Some(cred_id),
+            Some(&future_exp),
+            None,
+        )
+        .expect("Proof with active metadata must succeed");
+
+        assert_eq!(valid_meta_proof.credential_id.as_deref(), Some(cred_id));
+        assert_eq!(valid_meta_proof.expiration_date.as_deref(), Some(future_exp.as_str()));
+
+        // Verification when not revoked
+        let verify_active = verify_selective_disclosure_proof_ext(
+            &valid_meta_proof,
+            &keypair.public_key,
+            &params,
+            session_token,
+            None,
+            Some(|_id: &str| false),
+        );
+        assert!(verify_active.is_ok());
+
+        // 3. Verification rejection when credential is revoked
+        let verify_revoked = verify_selective_disclosure_proof_ext(
+            &valid_meta_proof,
+            &keypair.public_key,
+            &params,
+            session_token,
+            None,
+            Some(|id: &str| id == cred_id),
+        );
+        assert!(verify_revoked.is_err());
+        match verify_revoked.err().unwrap() {
+            CoreError::VerificationFailed(VerificationRejectionReason::CredentialRevoked) => (),
+            other => panic!("Expected CredentialRevoked, got {:?}", other),
+        }
+
+        // 4. Server-side rejection when proof expiration is in the past
+        let mut expired_proof = valid_meta_proof.clone();
+        expired_proof.expiration_date = Some(past_exp);
+        let verify_expired = verify_selective_disclosure_proof_ext(
+            &expired_proof,
+            &keypair.public_key,
+            &params,
+            session_token,
+            None,
+            Some(|_id: &str| false),
+        );
+        assert!(verify_expired.is_err());
+        match verify_expired.err().unwrap() {
+            CoreError::VerificationFailed(VerificationRejectionReason::CredentialExpired) => (),
+            other => panic!("Expected CredentialExpired, got {:?}", other),
         }
     }
 }

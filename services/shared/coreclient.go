@@ -130,3 +130,53 @@ func (c *CoreClient) VerifyProof(req CoreVerifyProofRequest) (*CoreVerifyProofRe
 	}
 	return &verifyResp, nil
 }
+
+func (c *CoreClient) RevokeCredential(credentialID string, reason *string) error {
+	req := RevokeCredentialRequest{
+		CredentialID: credentialID,
+		Reason:       reason,
+	}
+	body, err := json.Marshal(req)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.httpClient.Post(fmt.Sprintf("%s/api/v1/revocation/revoke", c.baseURL), "application/json", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to call core /api/v1/revocation/revoke: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errObj map[string]interface{}
+		_ = json.NewDecoder(resp.Body).Decode(&errObj)
+		return fmt.Errorf("core revocation failed with status %d: %v", resp.StatusCode, errObj)
+	}
+	return nil
+}
+
+func (c *CoreClient) CheckRevocation(credentialID string) (*RevocationCheckResponse, error) {
+	req := map[string]string{"credentialId": credentialID}
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.httpClient.Post(fmt.Sprintf("%s/api/v1/revocation/check", c.baseURL), "application/json", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to call core /api/v1/revocation/check: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errObj map[string]interface{}
+		_ = json.NewDecoder(resp.Body).Decode(&errObj)
+		return nil, fmt.Errorf("core revocation check failed with status %d: %v", resp.StatusCode, errObj)
+	}
+
+	var res RevocationCheckResponse
+	if err := json.NewDecoder(resp.Body).Decode(&res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}

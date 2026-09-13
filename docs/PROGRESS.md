@@ -16,7 +16,7 @@ Keep this table current — update it whenever a checkpoint's status changes. Th
 | 2 | BBS+ selective disclosure, end to end | acceptance criteria met | 2026-09-13 |
 | 3 | Session tokens and replay protection | acceptance criteria met | 2026-09-13 |
 | 4 | Receipts | acceptance criteria met | 2026-09-13 |
-| 5 | Revocation and expiry | not started | — |
+| 5 | Revocation and expiry | acceptance criteria met | 2026-09-13 |
 | 6 | Generalize to second/third predicates | not started | — |
 | 7 | Noir circuit for flagship age claim | not started | — |
 | 8 | `verifier-pwa` end to end | not started | — |
@@ -121,6 +121,23 @@ Copy this template for each new session:
 - Created Rust acceptance test `core/tests/receipt_privacy_audit_test.rs` auditing all keys of generated receipts to guarantee zero holder personal identifiers exist.
 **Open SPEC-GAP flags introduced this session:** none
 **Next step:** Begin Checkpoint 5 — Revocation and expiry. Implement credential revocation checking and expiry validation during proof generation and verification (`CheckRevocation`, `CredentialRevoked`, `CredentialExpired`).
+
+## Session 2026-09-13 — cp5-revocation-expiry
+**Model:** Gemini 3.8 Flash
+**Checkpoint worked on:** 5 — Revocation and expiry
+**Status:** acceptance criteria met
+**What changed:**
+- Implemented thread-safe `RevocationRegistry` in `core/src/credential/revocation.rs` tracking revoked credentials with timestamps and optional reasons.
+- Extended `SelectiveDisclosureProof` in `core/src/bbs/proof.rs` with `credential_id` and `expiration_date` fields.
+- Added client-side expiry check during proof generation in `generate_selective_disclosure_proof_with_metadata` returning `CredentialExpired`.
+- Added server-side expiry check and revocation check in `verify_selective_disclosure_proof_ext` returning `CredentialExpired` or `CredentialRevoked`.
+- Added `/api/v1/revocation/revoke` and `/api/v1/revocation/check` endpoints to `core/src/server.rs`.
+- Added `RevokeCredential` and `CheckRevocation` methods to Go `services/shared/coreclient.go` and data types to `services/shared/types.go`.
+- Added `POST /credentials/{id}/revoke` and `GET /credentials/{id}/revocation` endpoints to Go `services/issuer-api`.
+- Created and executed domain-named Rust acceptance test `core/tests/revocation_and_expiry_test.rs` demonstrating the complete lifecycle: active credential verification, client-side expired credential rejection, server-side expired proof rejection, and server-side revoked credential rejection.
+- Created and executed Go unit test `services/issuer-api/internal/handler/revocation_test.go` testing issuer revocation and query flow.
+**Open SPEC-GAP flags introduced this session:** none
+**Next step:** Begin Checkpoint 6 — Generalize to second and third predicates (`EQ` for nationality == "NG" and `GTE` for gpa >= 3.50 against `StudentCredential` using the generic predicate engine).
 
 
 
