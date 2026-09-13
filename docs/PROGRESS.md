@@ -17,7 +17,7 @@ Keep this table current — update it whenever a checkpoint's status changes. Th
 | 3 | Session tokens and replay protection | acceptance criteria met | 2026-09-13 |
 | 4 | Receipts | acceptance criteria met | 2026-09-13 |
 | 5 | Revocation and expiry | acceptance criteria met | 2026-09-13 |
-| 6 | Generalize to second/third predicates | not started | — |
+| 6 | Generalize to second/third predicates | acceptance criteria met | 2026-09-13 |
 | 7 | Noir circuit for flagship age claim | not started | — |
 | 8 | `verifier-pwa` end to end | not started | — |
 | 9 | `holder-wallet` and `issuer-console` end to end | not started | — |
@@ -138,6 +138,21 @@ Copy this template for each new session:
 - Created and executed Go unit test `services/issuer-api/internal/handler/revocation_test.go` testing issuer revocation and query flow.
 **Open SPEC-GAP flags introduced this session:** none
 **Next step:** Begin Checkpoint 6 — Generalize to second and third predicates (`EQ` for nationality == "NG" and `GTE` for gpa >= 3.50 against `StudentCredential` using the generic predicate engine).
+
+## Session 2026-09-13 — cp6-generic-predicates
+**Model:** Gemini 3.8 Flash
+**Checkpoint worked on:** 6 — Generalize to second and third predicates
+**Status:** acceptance criteria met
+**What changed:**
+- Generalized generic predicate evaluation in `core/src/predicate/mod.rs` to robustly evaluate numeric values (both f64 and decimal strings) for `GTE` and structural/string comparison for `EQ` without creating any claim-specific code paths.
+- Preserved strict compliance with Section 4's prime rule: zero claim-specific functions (`checkAge()`, `verifyGPA()`, etc.) exist anywhere in the codebase.
+- Created and executed domain-named Rust acceptance test `core/tests/generic_predicates_test.rs` demonstrating:
+  1. `EQ` predicate on `NationalIDCredential`: nationality == "NG" succeeds, foreign nationality ("GH") rejected with `PredicateNotSatisfied`.
+  2. `GTE` predicate on `StudentCredential`: GPA 3.82 >= 3.50 succeeds with zero attributes revealed (actual GPA hidden), GPA 3.15 rejected with `PredicateNotSatisfied`.
+  3. Secondary demo scenario: full multi-claim academic eligibility evaluation (nationality == "NG", enrollmentStatus == "active", GPA >= 3.50) fully verified using the identical generic predicate engine.
+- Created and executed Go integration test `services/verifier-api/internal/handler/generic_predicates_flow_test.go` confirming `verifier-api` and `receipt-service` handle generic predicates `EQ` and `GTE` across both schemas.
+**Open SPEC-GAP flags introduced this session:** none
+**Next step:** Begin Checkpoint 7 — Noir circuit for the flagship age claim. Implement real Noir circuit (`dateOfBirth` implies `age >= threshold`) compiled via `nargo`, proved and verified via Barretenberg backend, callable alongside BBS+.
 
 
 

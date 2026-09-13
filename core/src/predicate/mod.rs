@@ -37,9 +37,16 @@ pub fn evaluate_predicate(
         PredicateOp::EQ => Ok(attribute == threshold),
 
         PredicateOp::GTE => {
-            // Compare as numbers
-            match (attribute.as_f64(), threshold.as_f64()) {
-                (Some(attr_num), Some(thresh_num)) => Ok(attr_num >= thresh_num),
+            // Compare as numbers (supports JSON numbers and numeric strings generically)
+            let attr_num = attribute
+                .as_f64()
+                .or_else(|| attribute.as_str().and_then(|s| s.parse::<f64>().ok()));
+            let thresh_num = threshold
+                .as_f64()
+                .or_else(|| threshold.as_str().and_then(|s| s.parse::<f64>().ok()));
+
+            match (attr_num, thresh_num) {
+                (Some(attr_val), Some(thresh_val)) => Ok(attr_val >= thresh_val),
                 _ => Err(CoreError::InvalidPredicate(format!(
                     "GTE requires numeric values, got attribute: {:?}, threshold: {:?}",
                     attribute, threshold
