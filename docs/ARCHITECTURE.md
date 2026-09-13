@@ -51,3 +51,21 @@ Credentials conform to W3C Verifiable Credentials Data Model 2.0 JSON-LD specifi
 - `credentialSchema`: Reference to schema ID (`schema:national-id:v1`, etc.)
 - `credentialSubject`: Holds `id` (Holder DID) and the schema attribute claims
 - `proof`: BBS+ BLS signature envelope (`BbsBlsSignature2020`) containing hex-encoded compressed signature bytes, timestamp, and verificationMethod.
+
+---
+
+## BBS+ Selective Disclosure & Proof of Knowledge (PoK)
+
+TrustPass implements genuine Proof of Knowledge of BBS+ signatures using `bbs_plus::proof::PoKOfSignatureG1Protocol`:
+1. **Blinding Unrevealed Attributes**:
+   - For all undisclosed attributes, fresh Schnorr randomness is generated (`MessageOrBlinding::BlindMessageRandomly(msg)`).
+   - The verifier receives **zero attribute values**; only the mathematical relation is proven.
+2. **Session Token Binding (Replay Protection)**:
+   - When generating the Fiat-Shamir challenge, `chal_bytes` incorporates:
+     - Issuer's public key bytes.
+     - The protocol's challenge contribution (`pok.challenge_contribution`).
+     - The verifier's single-use, short-lived `session_token`.
+     - The target `schema_name` and `attribute_name`.
+   - The resulting challenge `c = H(chal_bytes)` cryptographically ties the proof to that exact verification session.
+   - Any attempt to replay a proof against a different session token or after expiration causes verification failure (`SessionTokenExpired` or `SessionTokenReused`).
+

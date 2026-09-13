@@ -13,7 +13,7 @@ Keep this table current — update it whenever a checkpoint's status changes. Th
 | # | Checkpoint | Status | Last touched |
 |---|---|---|---|
 | 1 | Credential core, no proofs yet | acceptance criteria met | 2026-09-13 |
-| 2 | BBS+ selective disclosure, end to end | not started | — |
+| 2 | BBS+ selective disclosure, end to end | acceptance criteria met | 2026-09-13 |
 | 3 | Session tokens and replay protection | not started | — |
 | 4 | Receipts | not started | — |
 | 5 | Revocation and expiry | not started | — |
@@ -75,4 +75,22 @@ Copy this template for each new session:
 - Created and executed `core/tests/checkpoint1_acceptance.rs`, verifying end-to-end synthetic `NationalIDCredential` issuance, schema validation, JSON roundtrip, signature verification, and negative tampering tests.
 **Open SPEC-GAP flags introduced this session:** none
 **Next step:** Begin Checkpoint 2 — BBS+ selective disclosure, end to end for one claim (age >= 18 via `BEFORE_DATE` on `dateOfBirth`). Implement PoK of BBS+ signature revealing only the predicate outcome, wire through `issuer-api` and `verifier-api`.
+
+## Session 2026-09-13 — cp2-selective-disclosure
+**Model:** Gemini 3.8 Flash
+**Checkpoint worked on:** 2 — BBS+ selective disclosure, end to end
+**Status:** acceptance criteria met
+**What changed:**
+- Implemented genuine BBS+ Proof of Knowledge (PoK) of signatures with selective disclosure in `core/src/bbs/proof.rs`, blinding all unrevealed attributes with fresh Schnorr randomness (`MessageOrBlinding::BlindMessageRandomly`).
+- Cryptographically bound the verifier's single-use `session_token`, `schema_name`, and `attribute_name` into the Fiat-Shamir challenge calculation for non-malleability and replay defense.
+- Implemented `core/proto/proof.proto` defining gRPC service contracts (`IssueCredential`, `GenerateProof`, `VerifyProof`, `CheckRevocation`).
+- Added lightweight HTTP API server in `core/src/server.rs` (`/healthz`, `/api/v1/issue`, `/api/v1/generate-proof`, `/api/v1/verify-proof`).
+- Implemented Go `services/shared/coreclient.go` HTTP client wrapper for `core`.
+- Implemented Go `services/issuer-api` with `/healthz`, `/credentials/issue`, `/credentials` endpoints.
+- Implemented Go `services/verifier-api` with `/healthz`, `/verification/sessions`, `/verification/verify`, and single-use session store with TTL expiry.
+- Added comprehensive unit tests in Go for `verifier-api` (session lifecycle, expiration, replay rejection) and `issuer-api`.
+- Created and passed `core/tests/checkpoint2_acceptance.rs`, proving adult pass (DOB 1999-07-20 >= 18 with 0 personal attributes revealed), minor rejection (`PredicateNotSatisfied`), tampered proof rejection (`SignatureInvalid`), and mismatched token rejection (`SessionTokenExpired`).
+**Open SPEC-GAP flags introduced this session:** none
+**Next step:** Begin Checkpoint 3 — Session tokens and replay protection. Expand verification session tests to demonstrate all three rejection cases explicitly (expired, reused, tampered signature) through live HTTP services and persistence.
+
 

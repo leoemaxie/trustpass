@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package trustpass.core.v1;
+
+option go_package = "github.com/leoemaxie/trustpass/services/shared/pb";
+
+// Generic predicate operators
+enum PredicateOp {
+  PREDICATE_OP_UNSPECIFIED = 0;
+  PREDICATE_OP_GTE = 1;
+  PREDICATE_OP_EQ = 2;
+  PREDICATE_OP_IN_SET = 3;
+  PREDICATE_OP_BEFORE_DATE = 4;
+}
+
+// Typed rejection reasons for verification failures
+enum RejectionReason {
+  REJECTION_REASON_UNSPECIFIED = 0;
+  REJECTION_REASON_SIGNATURE_INVALID = 1;
+  REJECTION_REASON_PREDICATE_NOT_SATISFIED = 2;
+  REJECTION_REASON_CREDENTIAL_EXPIRED = 3;
+  REJECTION_REASON_CREDENTIAL_REVOKED = 4;
+  REJECTION_REASON_SESSION_TOKEN_EXPIRED = 5;
+  REJECTION_REASON_SESSION_TOKEN_REUSED = 6;
+}
+
+message ClaimRequest {
+  string schema_name = 1;
+  string attribute_name = 2;
+  PredicateOp operator = 3;
+  string value_json = 4;
+}
+
+message IssueCredentialRequest {
+  string schema_id = 1;
+  string holder_did = 2;
+  string claims_json = 3;
+  int64 expires_at_unix = 4;
+}
+
+message IssueCredentialResponse {
+  bool success = 1;
+  string credential_json = 2;
+  string error_message = 3;
+}
+
+message GenerateProofRequest {
+  string credential_json = 1;
+  ClaimRequest claim_request = 2;
+  string session_token = 3;
+}
+
+message GenerateProofResponse {
+  bool success = 1;
+  string proof_json = 2;
+  RejectionReason rejection_reason = 3;
+  string error_message = 4;
+}
+
+message VerifyProofRequest {
+  string proof_json = 1;
+  string expected_session_token = 2;
+  string issuer_did = 3;
+}
+
+message VerifyProofResponse {
+  bool valid = 1;
+  RejectionReason rejection_reason = 2;
+  string error_message = 3;
+}
+
+message RevocationCheckRequest {
+  string credential_id = 1;
+}
+
+message RevocationCheckResponse {
+  bool revoked = 1;
+  string reason = 2;
+}
+
+service ProofCore {
+  rpc IssueCredential(IssueCredentialRequest) returns (IssueCredentialResponse);
+  rpc GenerateProof(GenerateProofRequest) returns (GenerateProofResponse);
+  rpc VerifyProof(VerifyProofRequest) returns (VerifyProofResponse);
+  rpc CheckRevocation(RevocationCheckRequest) returns (RevocationCheckResponse);
+}
