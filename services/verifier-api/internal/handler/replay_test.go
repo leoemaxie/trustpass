@@ -13,11 +13,11 @@ import (
 	"github.com/leoemaxie/trustpass/services/verifier-api/internal/session"
 )
 
-// TestCheckpoint3ThreeRejectionCases explicitly tests all three rejection cases:
+// TestReplayProtectionAndSessionExpiration explicitly tests all three rejection cases:
 // 1. SessionTokenExpired
 // 2. SessionTokenReused
 // 3. SignatureInvalid
-func TestCheckpoint3ThreeRejectionCases(t *testing.T) {
+func TestReplayProtectionAndSessionExpiration(t *testing.T) {
 	// Mock core server
 	mockCore := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/verify-proof" {

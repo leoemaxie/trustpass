@@ -10,15 +10,13 @@ use trustpass_core::credential::vc::VerifiableCredential;
 use trustpass_core::error::{CoreError, VerificationRejectionReason};
 use trustpass_core::predicate::{ClaimRequest, PredicateOp};
 
-/// Demonstration of Replay-Protected Session Token Engine
-/// Meets Checkpoint 3 Acceptance Criteria:
-/// Demonstrate all three rejection cases explicitly:
+/// Tests replay-protected session token enforcement across all rejection paths:
 /// 1. SessionTokenExpired
 /// 2. SessionTokenReused
 /// 3. SignatureInvalid
 #[test]
-fn test_checkpoint_3_acceptance_all_three_rejection_cases() {
-    println!("=== Checkpoint 3 Acceptance Test: Replay Protection & Rejection Paths ===");
+fn test_session_token_replay_and_tamper_rejection_paths() {
+    println!("=== Session Token & Replay Protection Rejection Paths ===");
 
     // 1. Setup Issuer & Issue Credential
     let schema = seed_national_id_schema("did:key:pending");
@@ -181,5 +179,5 @@ fn test_checkpoint_3_acceptance_all_three_rejection_cases() {
         other => panic!("Expected SignatureInvalid, got {:?}", other),
     }
 
-    println!("\n=== Checkpoint 3 Acceptance Criteria MET ===");
+    println!("\n=== Replay Protection & Rejection Paths Test PASSED ===");
 }

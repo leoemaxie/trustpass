@@ -9,8 +9,8 @@ use trustpass_core::credential::vc::VerifiableCredential;
 use trustpass_core::error::{CoreError, VerificationRejectionReason};
 
 #[test]
-fn test_checkpoint_1_acceptance() {
-    println!("=== Checkpoint 1 Acceptance Test ===");
+fn test_national_id_credential_issuance_and_signature_verification() {
+    println!("=== Credential Core: Issuance, Schema Validation & Signature Verification ===");
 
     // 1. Setup BBS+ signature parameters for 4 attributes and generate issuer keypair
     let schema = seed_national_id_schema("did:key:pending");
@@ -96,5 +96,5 @@ fn test_checkpoint_1_acceptance() {
     assert!(bad_date_res.is_err());
     println!("[PASS] Negative test: Malformed attribute format rejected by schema validation.");
 
-    println!("\n=== Checkpoint 1 Acceptance Criteria MET ===");
+    println!("\n=== Credential Issuance & Signature Verification Test PASSED ===");
 }

@@ -11,8 +11,8 @@ use trustpass_core::error::{CoreError, VerificationRejectionReason};
 use trustpass_core::predicate::{ClaimRequest, PredicateOp};
 
 #[test]
-fn test_checkpoint_2_acceptance_end_to_end() {
-    println!("=== Checkpoint 2 Acceptance Test: BBS+ Selective Disclosure End-to-End ===");
+fn test_bbs_selective_disclosure_age_verification_flow() {
+    println!("=== BBS+ Selective Disclosure: Zero Attribute Disclosure Proof & Verification ===");
 
     // Setup issuer
     let schema = seed_national_id_schema("did:key:pending");
@@ -152,5 +152,5 @@ fn test_checkpoint_2_acceptance_end_to_end() {
         other => panic!("Expected SessionTokenExpired, got {:?}", other),
     }
 
-    println!("\n=== Checkpoint 2 Acceptance Criteria MET ===");
+    println!("\n=== BBS+ Selective Disclosure Test PASSED ===");
 }
