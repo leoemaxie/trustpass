@@ -8,7 +8,7 @@ The authoritative technical specification is `TRUSTPASS_BUILD_SPEC.md` at the re
 
 ## 1. Prime directive
 
-**Prove, don't reveal.** Every module you touch must serve the principle that a verifier receives the minimum fact needed and nothing else. If you are ever unsure whether a change leaks more than it should, treat that as a blocking question, not a judgment call to resolve silently in favor of shipping.
+**Prove, don't show!** Every module you touch must serve the principle that a verifier receives the minimum fact needed and nothing else. If you are ever unsure whether a change leaks more than it should, treat that as a blocking question, not a judgment call to resolve silently in favor of shipping.
 
 ---
 
