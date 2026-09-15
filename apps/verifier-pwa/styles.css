@@ -1,0 +1,223 @@
+/**
+ * verifier-pwa — App-specific styles
+ * ====================================
+ * Imports shared layer and adds PWA-specific overrides.
+ * Import order: tokens → base → components → THIS FILE.
+ *
+ * Keep this file lean — the shared layer does the heavy lifting.
+ * Only PWA-specific layout and overrides belong here.
+ */
+
+/* ── Body: full-bleed, no scroll on result screens ───────────────────── */
+body {
+  overflow: hidden;   /* Result screens use position: fixed full-bleed */
+}
+
+/* ── Root wrapper ────────────────────────────────────────────────────── */
+.pwa-root {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ── Screen visibility system ────────────────────────────────────────── */
+.pwa-screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: var(--tp-bg-dark);
+  transition: opacity var(--tp-transition-normal);
+}
+
+.pwa-screen--hidden {
+  opacity: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pwa-screen:not(.pwa-screen--hidden) {
+  z-index: var(--tp-z-raised);
+  opacity: 1;
+}
+
+/* ── Scan screen header strip ────────────────────────────────────────── */
+.pwa-scan-header {
+  display: flex;
+  align-items: center;
+  gap: var(--tp-space-3);
+  padding: var(--tp-space-4) var(--tp-space-5);
+  background: var(--tp-bg-surface);
+  border-bottom: 1px solid var(--tp-border);
+  flex-shrink: 0;
+}
+
+.pwa-icon {
+  flex-shrink: 0;
+  border-radius: var(--tp-radius-sm);
+}
+
+.pwa-app-name {
+  font-size: var(--tp-text-base);
+  font-weight: 700;
+  color: var(--tp-text-primary);
+  letter-spacing: var(--tp-tracking-tight);
+  flex: 1;
+}
+
+.pwa-receipts-btn {
+  margin-left: auto;
+}
+
+/* ── Camera scanner area ─────────────────────────────────────────────── */
+.pwa-scanner-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--tp-space-5);
+  padding: var(--tp-space-6) var(--tp-space-5);
+}
+
+/* Hidden canvas used by jsQR for frame analysis */
+.pwa-scanner-canvas {
+  display: none;
+}
+
+.pwa-scan-hint {
+  font-size: var(--tp-text-sm);
+  color: var(--tp-text-muted);
+  text-align: center;
+  max-width: 260px;
+}
+
+/* ── Primary scan action — large touch target ────────────────────────── */
+.pwa-scan-action {
+  padding: var(--tp-space-5) var(--tp-space-5) var(--tp-space-8);
+  flex-shrink: 0;
+}
+
+/* Override tp-btn-lg minimum for primary pwa action — 64px */
+.pwa-scan-action .tp-btn-lg {
+  min-height: 64px;
+  font-size: var(--tp-text-lg);
+}
+
+/* ── Processing screen ───────────────────────────────────────────────── */
+.pwa-screen-processing {
+  align-items: center;
+  justify-content: center;
+  gap: var(--tp-space-5);
+  background: var(--tp-bg-dark);
+}
+
+.pwa-processing-label {
+  font-size: var(--tp-text-xl);
+  font-weight: 600;
+  color: var(--tp-text-muted);
+  letter-spacing: var(--tp-tracking-wide);
+}
+
+/* ── Result screens: override tp-result-screen for pwa ──────────────── */
+/* The scan-again button needs pwa-specific colour adaptation */
+.pwa-scan-again-btn {
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--tp-bg-dark);
+  border: 2px solid rgba(0, 0, 0, 0.25);
+  font-size: var(--tp-text-lg);
+  min-height: 64px;   /* Larger touch target on result screen */
+  border-radius: var(--tp-radius-xl);
+}
+.pwa-scan-again-btn:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.pwa-scan-again-btn--fail {
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+.pwa-scan-again-btn--fail:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Receipts screen ─────────────────────────────────────────────────── */
+.pwa-receipts-title {
+  font-size: var(--tp-text-base);
+  font-weight: 700;
+  text-align: center;
+  flex: 1;
+}
+
+.pwa-receipts-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--tp-space-5);
+}
+
+.pwa-receipts-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--tp-space-3);
+}
+
+/* Individual receipt row */
+.pwa-receipt-item {
+  display: flex;
+  align-items: center;
+  gap: var(--tp-space-4);
+  background: var(--tp-bg-card);
+  border: 1px solid var(--tp-border);
+  border-radius: var(--tp-radius-lg);
+  padding: var(--tp-space-4) var(--tp-space-5);
+}
+
+.pwa-receipt-item__indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pwa-receipt-item__indicator--pass { background: var(--tp-signal-pass); }
+.pwa-receipt-item__indicator--fail { background: var(--tp-signal-fail); }
+
+.pwa-receipt-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.pwa-receipt-item__predicate {
+  font-size: var(--tp-text-sm);
+  font-weight: 500;
+  color: var(--tp-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pwa-receipt-item__time {
+  font-size: var(--tp-text-xs);
+  color: var(--tp-text-muted);
+  margin-top: var(--tp-space-1);
+}
+
+.pwa-receipt-item__result {
+  font-size: var(--tp-text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tp-tracking-wider);
+  text-transform: uppercase;
+}
+.pwa-receipt-item__result--pass { color: var(--tp-signal-pass); }
+.pwa-receipt-item__result--fail { color: var(--tp-signal-fail); }
+
+/* ── Responsive: tiny phones (320px) ────────────────────────────────── */
+@media (max-width: 360px) {
+  .tp-result-label {
+    font-size: 3rem;
+  }
+  .pwa-scan-action .tp-btn-lg {
+    font-size: var(--tp-text-base);
+  }
+}

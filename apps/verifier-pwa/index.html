@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#090D16" />
+  <meta name="description" content="TrustPass: Verify credentials instantly. Prove, don't show!" />
+
+  <title>TrustPass Verifier</title>
+
+  <!-- PWA manifest -->
+  <link rel="manifest" href="/manifest.json" />
+
+  <!-- Preload fonts before any paint -->
+  <link rel="preload" href="/fonts/inter-variable.woff2" as="font" type="font/woff2" crossorigin />
+
+  <!-- Styles — ordered: tokens → base → components → pwa-specific -->
+  <link rel="stylesheet" href="/shared/tokens.css" />
+  <link rel="stylesheet" href="/shared/base.css" />
+  <link rel="stylesheet" href="/shared/components.css" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+
+  <!-- ── App Root ───────────────────────────────────────────────────────── -->
+  <div id="app" class="pwa-root">
+
+    <!-- ── Screen: Scan (default) ─────────────────────────────────────── -->
+    <div id="screen-scan" class="pwa-screen" role="main" aria-label="Scan verification QR code">
+
+      <!-- Header strip — minimal, no navbar on primary screen -->
+      <header class="pwa-scan-header">
+        <img
+          src="/shared/assets/branding/app_icon.png"
+          alt="TrustPass"
+          class="pwa-icon"
+          width="32"
+          height="32"
+        />
+        <span class="pwa-app-name">TrustPass</span>
+        <button
+          id="btn-receipts"
+          class="tp-btn tp-btn-ghost tp-btn-sm pwa-receipts-btn"
+          aria-label="View past receipts"
+        >
+          Receipts
+        </button>
+      </header>
+
+      <!-- Camera viewfinder -->
+      <div class="pwa-scanner-wrap">
+        <div class="tp-scanner-container" id="scanner-container">
+          <video
+            id="scanner-video"
+            class="tp-scanner-video"
+            playsinline
+            muted
+            aria-hidden="true"
+          ></video>
+          <canvas id="scanner-canvas" class="pwa-scanner-canvas" aria-hidden="true"></canvas>
+          <div class="tp-scanner-overlay" aria-hidden="true">
+            <div class="tp-scanner-frame"></div>
+          </div>
+        </div>
+
+        <p class="pwa-scan-hint">Point at the QR code on the holder's screen</p>
+      </div>
+
+      <!-- Scan action -->
+      <div class="pwa-scan-action">
+        <button
+          id="btn-start-scan"
+          class="tp-btn tp-btn-primary tp-btn-lg tp-btn-full"
+          aria-label="Start camera to scan QR code"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
+            <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+            <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+            <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+            <rect width="7" height="7" x="7" y="7" rx="1"/>
+          </svg>
+          Start Scan
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Screen: Processing ─────────────────────────────────────────── -->
+    <div
+      id="screen-processing"
+      class="pwa-screen pwa-screen--hidden pwa-screen-processing"
+      role="status"
+      aria-label="Verifying credential"
+      aria-live="polite"
+    >
+      <div class="tp-spinner tp-spinner-lg" aria-hidden="true"></div>
+      <p class="pwa-processing-label">Verifying…</p>
+    </div>
+
+    <!-- ── Screen: Result VERIFIED ───────────────────────────────────── -->
+    <div
+      id="screen-pass"
+      class="pwa-screen pwa-screen--hidden tp-result-screen tp-result-screen--pass"
+      role="alert"
+      aria-live="assertive"
+      aria-label="Verification passed: VERIFIED"
+    >
+      <div class="tp-result-icon tp-result-icon--pass" aria-hidden="true">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <path d="m9 11 3 3L22 4"/>
+        </svg>
+      </div>
+
+      <p class="tp-result-label">VERIFIED</p>
+      <p id="pass-claim-text" class="tp-result-reason"></p>
+
+      <div class="tp-result-action">
+        <button
+          id="btn-scan-again-pass"
+          class="tp-btn tp-btn-full pwa-scan-again-btn"
+          aria-label="Scan another code"
+        >
+          Scan Another
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Screen: Result NOT VERIFIED ──────────────────────────────── -->
+    <div
+      id="screen-fail"
+      class="pwa-screen pwa-screen--hidden tp-result-screen tp-result-screen--fail"
+      role="alert"
+      aria-live="assertive"
+      aria-label="Verification failed: NOT VERIFIED"
+    >
+      <div class="tp-result-icon tp-result-icon--fail" aria-hidden="true">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="m15 9-6 6"/>
+          <path d="m9 9 6 6"/>
+        </svg>
+      </div>
+
+      <p class="tp-result-label">NOT VERIFIED</p>
+      <p id="fail-reason-text" class="tp-result-reason"></p>
+
+      <div class="tp-result-action">
+        <button
+          id="btn-scan-again-fail"
+          class="tp-btn tp-btn-full pwa-scan-again-btn pwa-scan-again-btn--fail"
+          aria-label="Scan another code"
+        >
+          Scan Another
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Screen: Receipts ──────────────────────────────────────────── -->
+    <div
+      id="screen-receipts"
+      class="pwa-screen pwa-screen--hidden"
+      role="main"
+      aria-label="Verification receipts"
+    >
+      <header class="pwa-scan-header">
+        <button
+          id="btn-back-to-scan"
+          class="tp-btn tp-btn-ghost tp-btn-sm"
+          aria-label="Back to scan"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+          Back
+        </button>
+        <h1 class="pwa-receipts-title">Receipts</h1>
+        <div style="width: 64px"></div><!-- spacer -->
+      </header>
+
+      <div class="pwa-receipts-body">
+        <div id="receipts-list" class="pwa-receipts-list" aria-live="polite">
+          <!-- Receipts injected by JS -->
+          <div class="tp-empty">
+            <div class="tp-empty__icon" aria-hidden="true">
+              <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+              </svg>
+            </div>
+            <p class="tp-empty__title">No receipts yet</p>
+            <p class="tp-empty__description">Completed verifications will appear here.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /#app -->
+
+  <!-- ── Toast region ─────────────────────────────────────────────────── -->
+  <div id="toast-region" class="tp-toast-region" role="status" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- jsQR — vendored locally, no CDN dependency -->
+  <script src="/vendor/jsQR.js"></script>
+  <script src="/app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{
+  "name": "TrustPass Verifier",
+  "short_name": "TrustPass",
+  "description": "Verify credentials instantly. Prove, don't show!",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090D16",
+  "theme_color": "#090D16",
+  "lang": "en",
+  "icons": [
+    {
+      "src": "/shared/assets/branding/app_icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/shared/assets/branding/app_icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
