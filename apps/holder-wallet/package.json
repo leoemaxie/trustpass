@@ -1,0 +1,22 @@
+{
+  "name": "trustpass-holder-wallet",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev":     "vite dev --port 5173",
+    "build":   "vite build",
+    "preview": "vite preview --port 5173",
+    "check":   "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json"
+  },
+  "dependencies": {
+    "@sveltejs/kit": "^2.70.3",
+    "svelte": "^5.57.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.10",
+    "vite": "^8.3.0",
+    "svelte-check": "^4.7.6"
+  }
+}
