@@ -34,7 +34,7 @@ func main() {
 
 	addr := fmt.Sprintf(":%s", port)
 	log.Printf("Starting schema-registry on %s with %d seed schemas...", addr, len(seeds))
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, shared.WithCORS(mux)); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }

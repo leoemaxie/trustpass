@@ -8,6 +8,7 @@ import (
 
 	"github.com/leoemaxie/trustpass/services/receipt-service/internal/handler"
 	"github.com/leoemaxie/trustpass/services/receipt-service/internal/repository"
+	"github.com/leoemaxie/trustpass/services/shared"
 )
 
 func main() {
@@ -26,7 +27,7 @@ func main() {
 
 	addr := fmt.Sprintf(":%s", port)
 	log.Printf("Starting receipt-service on %s...", addr)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, shared.WithCORS(mux)); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
