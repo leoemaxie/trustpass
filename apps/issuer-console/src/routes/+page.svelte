@@ -3,9 +3,9 @@
    * Route: / — Issuer Console Dashboard
    *
    * Shows summary stats: total issued, active, revoked, expired.
-   *
-   * TODO (next agent): fetch real stats from issuer-api GET /credentials/stats
    */
+  import { onMount } from 'svelte';
+
   let stats = {
     total:   0,
     active:  0,
@@ -13,12 +13,16 @@
     expired: 0,
   };
 
-  // TODO: load from API
-  // import { onMount } from 'svelte';
-  // onMount(async () => {
-  //   const res = await fetch('/api/issuer/credentials/stats');
-  //   stats = await res.json();
-  // });
+  onMount(async () => {
+    try {
+      const res = await fetch('/api/issuer/credentials/stats');
+      if (res.ok) {
+        stats = await res.json();
+      }
+    } catch (e) {
+      console.warn('Could not fetch stats from issuer-api:', e);
+    }
+  });
 </script>
 
 <svelte:head>

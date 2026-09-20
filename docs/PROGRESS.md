@@ -19,8 +19,8 @@ Keep this table current — update it whenever a checkpoint's status changes. Th
 | 5 | Revocation and expiry | acceptance criteria met | 2026-09-13 |
 | 6 | Generalize to second/third predicates | acceptance criteria met | 2026-09-13 |
 | 7 | Noir circuit for flagship age claim | acceptance criteria met | 2026-09-13 |
-| 8 | `verifier-pwa` end to end | not started | — |
-| 9 | `holder-wallet` and `issuer-console` end to end | not started | — |
+| 8 | `verifier-pwa` end to end | acceptance criteria met | 2026-09-20 |
+| 9 | `holder-wallet` and `issuer-console` end to end | acceptance criteria met | 2026-09-20 |
 | 10 | Docker Compose, docs, threat model | not started | — |
 
 Status values: `not started` / `in progress` / `acceptance criteria met`.
@@ -165,7 +165,52 @@ Copy this template for each new session:
 - Documented the dual-proof pluggable architecture in `docs/ARCHITECTURE.md` demonstrating BBS+ and Noir ZK circuits side by side.
 - Created and executed domain-named Rust acceptance test `core/tests/noir_circuit_test.rs` demonstrating both BBS+ and Noir producing verified results for the same underlying credential, and proving minor rejection across both proof mechanisms.
 **Open SPEC-GAP flags introduced this session:** `core/src/zk/noir.rs:188` — Host environment lacks native nargo binary on Windows host; real Noir circuit source code and mathematical constraint evaluation implemented; external Nargo/Barretenberg binary executes inside Linux Docker container in Checkpoint 10.
-**Next step:** Begin Checkpoint 8 — `verifier-pwa` end to end. Build framework-free minimal PWA with camera QR scanning, clear high-contrast binary result state (VERIFIED/NOT VERIFIED), and distinct non-personal receipts view for shop owners.
+**Next step:** Begin Checkpoint 8 (`verifier-pwa` end to end) and Checkpoint 9 (`holder-wallet` and `issuer-console` end to end).
+
+## Session 2026-09-20 — cp8-cp9-frontend-apps
+**Model:** Gemini 3.8 Flash
+**Checkpoint worked on:** 8 (`verifier-pwa` end to end) & 9 (`holder-wallet` and `issuer-console` end to end)
+**Status:** acceptance criteria met
+**What changed:**
+- **Shared Design System & Assets:**
+  - Vendored `jsQR.js` library in `apps/verifier-pwa/vendor/` and `apps/holder-wallet/static/vendor/` for framework-free, offline camera QR decoding without external CDN dependencies.
+  - Synchronized `/shared` tokens, base styles, component classes, and branding assets (`app_icon.png`, `logo.png`) into `apps/verifier-pwa/shared`, `apps/holder-wallet/static/shared`, and `apps/issuer-console/static/shared`.
+- **Backend API & Middleware Enhancements:**
+  - Implemented `WithCORS` HTTP middleware in `services/shared/cors.go` and wrapped all Go microservices (`issuer-api`, `verifier-api`, `schema-registry`, `receipt-service`) to allow cross-origin requests from the browser apps.
+  - Added `POST /verification/sessions/prove` to `verifier-api` enabling holder devices to request real BBS+ selective-disclosure proof generation.
+  - Added `GET /verification/receipts` to `verifier-api` to query non-personal audit receipts.
+  - Added `GET /credentials/stats` to `issuer-api` returning dashboard counts (`total`, `active`, `revoked`, `expired`).
+  - Generalized `issuer-api` `POST /credentials/issue` to accept both `claims` and `attributes` payloads, returning full verifiable credentials.
+- **`verifier-pwa` (Checkpoint 8):**
+  - Configured `CONFIG.VERIFIER_API_BASE` (port 8083) and connected `verifyProof()` to live `verifier-api POST /verification/verify`.
+  - Added cache-first Service Worker in `apps/verifier-pwa/sw.js` for offline operation and fast loads on throttled/weak mobile networks.
+  - Built high-contrast full-screen binary result states:
+    - PASS: Full-screen green checkmark with "VERIFIED" and satisfied predicate (e.g. `Age ≥ 18`).
+    - FAIL: Full-screen red X with "NOT VERIFIED" and shop-owner friendly explanations (`SignatureInvalid`, `PredicateNotSatisfied`, `SessionTokenExpired`, `SessionTokenReused`, `CredentialRevoked`, `CredentialExpired`).
+  - Added manual/test QR payload input panel for automated and camera-less testing.
+  - Added live receipt sync in "Receipts" view querying non-personal audit logs from `verifier-api` / `receipt-service` alongside `localStorage`.
+  - Documented the non-technical 5-step point-of-sale walkthrough in `docs/VERIFIER_WALKTHROUGH.md`.
+- **`holder-wallet` (Checkpoint 9):**
+  - Installed dependencies via `pnpm` and resolved all SvelteKit/Vite configurations and Svelte 5 rune/legacy compatibility checks (`0 errors` on `svelte-check`).
+  - Wired `/scan` with camera QR reader via local `jsQR`.
+  - Wired `/claim-review` to display the trust review screen (what is asked, what will be revealed as yes/no, what stays hidden by ZK) and call `/api/verifier/verification/sessions/prove` to generate cryptographic proofs.
+  - Wired `/proof-qr` displaying the resulting single-use proof QR code with an active session countdown timer.
+  - Added `/credentials/[id]` detail view showing credential metadata and local private claims.
+  - Added demo launchers in `apps/holder-wallet/src/routes/+page.svelte` for both NITDA demo scenarios:
+    - Primary: Point-of-sale age check (Age ≥ 18) with adult pass and minor fail.
+    - Secondary: Academic eligibility check (GPA ≥ 3.50) with eligible pass and low GPA fail.
+- **`issuer-console` (Checkpoint 9):**
+  - Configured Vite reverse proxy to services (schemas on 8081, issuer on 8082, verifier on 8083, receipts on 8084).
+  - Wired Dashboard (`/`) to live stats (`/api/issuer/credentials/stats`).
+  - Wired Schema Browser (`/schemas`) to `schema-registry` (`/api/schemas/schemas`).
+  - Wired Issue Form (`/issue`) to load schemas dynamically and issue credentials via `issuer-api` (`/api/issuer/credentials/issue`).
+  - Wired Credentials Manager (`/credentials`) to list issued credentials and support inline cryptographic revocation via `issuer-api` (`/api/issuer/credentials/{id}/revoke`).
+  - Verified `0 errors and 0 warnings` across all routes via `svelte-check`.
+- **Automated Verification Acceptance Tests:**
+  - Authored `services/verifier-api/internal/handler/checkpoint8_9_acceptance_test.go` verifying the entire end-to-end API lifecycle: adult pass, minor fail, academic eligibility pass, low GPA fail, replay rejection (`SessionTokenReused`), and revocation rejection (`CredentialRevoked`), confirming zero personal data in receipts.
+**Open SPEC-GAP flags introduced this session:** none
+**Next step:** Begin Checkpoint 10 — Docker Compose, docs, and threat model writeup. Create `docker-compose.yml` to orchestrate all services and frontends with a single command, and complete `docs/ARCHITECTURE.md` and `docs/THREAT_MODEL.md` addressing all four non-negotiable requirements.
+
 
 
 

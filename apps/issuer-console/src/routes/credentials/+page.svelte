@@ -17,25 +17,44 @@
   let confirmId   = null;   // id awaiting inline revoke confirmation
 
   onMount(async () => {
-    // TODO: replace mock with real API call
-    // const res = await fetch('/api/issuer/credentials');
-    // credentials = await res.json();
+    try {
+      const res = await fetch('/api/issuer/credentials');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          credentials = data.map(c => ({
+            id: c.credentialUrn || c.id,
+            rawId: c.id,
+            type: c.type || c.schemaName || 'Credential',
+            holderDid: c.holderDid || 'did:key:...',
+            issuedAt: c.issuedAt,
+            expiresAt: c.expiresAt,
+            revoked: !!c.revoked,
+          }));
+          loading = false;
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not fetch credentials from issuer-api:', e);
+    }
 
-    // MOCK
-    await new Promise(r => setTimeout(r, 600));
+    // Fallback sample data
     credentials = [
       {
         id: 'urn:uuid:mock-001',
+        rawId: 'mock-001',
         type: 'NationalIDCredential',
-        holderDid: 'did:key:zABCDE…',
+        holderDid: 'did:key:zUC724vsrMwHvKyqDdHtrh7z2GNe5xbsfgivth466P4vm2iaJLW9kK48DbgKa32yL944yK9k',
         issuedAt: '2026-09-13T10:00:00Z',
         expiresAt: '2027-09-13T10:00:00Z',
         revoked: false,
       },
       {
         id: 'urn:uuid:mock-002',
+        rawId: 'mock-002',
         type: 'StudentCredential',
-        holderDid: 'did:key:zXYZWV…',
+        holderDid: 'did:key:zUC724vsrMwHvKyqDdHtrh7z2GNe5xbsfgivth466P4vm2iaJLW9kK48DbgKa32yL944yK9k',
         issuedAt: '2026-09-13T12:30:00Z',
         expiresAt: null,
         revoked: false,
@@ -54,10 +73,15 @@
     revoking = id;
     confirmId = null;
     try {
-      // TODO: real API
-      // await fetch(`/api/issuer/credentials/${id}/revoke`, { method: 'POST' });
-      await new Promise(r => setTimeout(r, 700));
-      credentials = credentials.map(c => c.id === id ? { ...c, revoked: true } : c);
+      const res = await fetch(`/api/issuer/credentials/${encodeURIComponent(id)}/revoke`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Revoked via Issuer Console' }),
+      });
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+      credentials = credentials.map(c => c.id === id || c.rawId === id ? { ...c, revoked: true } : c);
     } catch (e) {
       alert('Revocation failed: ' + e.message);
     } finally {

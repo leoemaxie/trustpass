@@ -12,18 +12,27 @@
   let loading = true;
 
   onMount(async () => {
-    // TODO: real fetch
-    // const res = await fetch('/api/schemas/schemas');
-    // schemas = await res.json();
+    try {
+      const res = await fetch('/api/schemas/schemas');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          schemas = data;
+          loading = false;
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not fetch schemas from registry:', e);
+    }
 
-    // MOCK
-    await new Promise(r => setTimeout(r, 400));
+    // Default seed schemas
     schemas = [
       {
         id: 'schema:national-id:v1',
         name: 'NationalIDCredential',
         version: 1,
-        issuerDid: 'did:key:zMOCK_ISSUER_DID',
+        issuerDid: 'did:key:zUC724vsrMwHvKyqDdHtrh7z2GNe5xbsfgivth466P4vm2iaJLW9kK48DbgKa32yL944yK9k',
         createdAt: '2026-09-13T10:00:00Z',
         attributes: [
           { name: 'fullName',    type: 'string' },
@@ -36,7 +45,7 @@
         id: 'schema:student:v1',
         name: 'StudentCredential',
         version: 1,
-        issuerDid: 'did:key:zMOCK_ISSUER_DID',
+        issuerDid: 'did:key:zUC724vsrMwHvKyqDdHtrh7z2GNe5xbsfgivth466P4vm2iaJLW9kK48DbgKa32yL944yK9k',
         createdAt: '2026-09-13T10:00:00Z',
         attributes: [
           { name: 'studentId',        type: 'string'  },

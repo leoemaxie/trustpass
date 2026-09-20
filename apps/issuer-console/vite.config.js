@@ -6,10 +6,22 @@ export default defineConfig({
   server: {
     port: 5174,
     proxy: {
-      '/api/issuer':   'http://localhost:8081',
-      '/api/verifier': 'http://localhost:8082',
-      '/api/receipts': 'http://localhost:8083',
-      '/api/schemas':  'http://localhost:8084',
+      '/api/schemas': {
+        target: 'http://localhost:8081',
+        rewrite: (path) => path.replace(/^\/api\/schemas/, ''),
+      },
+      '/api/issuer': {
+        target: 'http://localhost:8082',
+        rewrite: (path) => path.replace(/^\/api\/issuer/, ''),
+      },
+      '/api/verifier': {
+        target: 'http://localhost:8083',
+        rewrite: (path) => path.replace(/^\/api\/verifier/, ''),
+      },
+      '/api/receipts': {
+        target: 'http://localhost:8084',
+        rewrite: (path) => path.replace(/^\/api\/receipts/, ''),
+      },
     },
   },
   build: { target: 'es2020' },

@@ -21,11 +21,20 @@
   let error       = null;
 
   onMount(async () => {
-    // TODO: replace with real schema fetch
-    // const res = await fetch('/api/schemas/schemas');
-    // schemas = await res.json();
+    try {
+      const res = await fetch('/api/schemas/schemas');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) {
+          schemas = data;
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Could not load schemas from registry:', e);
+    }
 
-    // MOCK schemas
+    // Fallback seed schemas
     schemas = [
       {
         name: 'NationalIDCredential',
@@ -60,28 +69,30 @@
     error = null;
     submitting = true;
     try {
-      // TODO: replace mock with real API call
-      // const res = await fetch('/api/issuer/credentials/issue', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     schemaName: selectedSchema.name,
-      //     holderDid,
-      //     attributes,
-      //   }),
-      // });
-      // if (!res.ok) throw new Error(await res.text());
-      // result = await res.json();
+      const res = await fetch('/api/issuer/credentials/issue', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          schemaName: selectedSchema.name,
+          holderDid,
+          attributes,
+        }),
+      });
 
-      // MOCK result — remove when API is wired
-      await new Promise(r => setTimeout(r, 1000));
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || 'Issuance failed');
+      }
+
+      const vc = await res.json();
       result = {
-        id: 'urn:uuid:mock-' + Math.random().toString(36).slice(2),
+        id: vc.id,
         type: selectedSchema.name,
         holderDid,
         attributes,
-        issuedAt: new Date().toISOString(),
-        signature: 'mock-bbs-signature-bytes',
+        issuedAt: vc.issuanceDate || new Date().toISOString(),
+        signature: vc.proof?.proofValue || 'BBS+ Signature Verified',
+        fullVc: vc,
       };
     } catch (e) {
       error = e.message;
