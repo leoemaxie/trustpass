@@ -1,0 +1,123 @@
+/**
+ * TrustPass Design Tokens
+ * ========================
+ * Single source of truth for all CSS custom properties.
+ * Import this file FIRST in every app before any other stylesheet.
+ *
+ * Usage: var(--tp-<token>)
+ * Never use hardcoded hex values in app CSS — always reference a token.
+ */
+
+:root {
+  /* ── Surfaces & Backgrounds ─────────────────────────────────────────────── */
+  --tp-bg-dark:         #090D16;    /* Page background — deepest layer          */
+  --tp-bg-surface:      #0F172A;    /* Navbar, sidebar, panel background        */
+  --tp-bg-card:         #1E293B;    /* Card, input, list-item background        */
+  --tp-bg-overlay:      rgba(15, 23, 42, 0.85); /* Modal / drawer backdrop     */
+
+  /* ── Borders ──────────────────────────────────────────────────────────────*/
+  --tp-border:          #334155;    /* Default border — dividers, outlines      */
+  --tp-border-focus:    #38BDF8;    /* Focus ring — keyboard navigation         */
+  --tp-border-subtle:   #1E293B;    /* Very subtle separator                    */
+
+  /* ── Typography ──────────────────────────────────────────────────────────*/
+  --tp-text-primary:    #F8FAFC;    /* Primary body + heading text              */
+  --tp-text-muted:      #94A3B8;    /* Labels, captions, timestamps             */
+  --tp-text-accent:     #38BDF8;    /* Links, motto, highlighted values         */
+  --tp-text-disabled:   #475569;    /* Disabled state text                      */
+
+  /* ── Verification Signals ────────────────────────────────────────────────*/
+  /* RULE: Use ONLY for their defined semantic purpose. Never decoratively.  */
+  --tp-signal-pass:         #10B981;          /* Emerald — VERIFIED              */
+  --tp-signal-pass-bg:      rgba(16, 185, 129, 0.12); /* Pass bg tint           */
+  --tp-signal-pass-glow:    rgba(16, 185, 129, 0.30); /* Pass glow / halo       */
+  --tp-signal-fail:         #EF4444;          /* Crimson — NOT VERIFIED          */
+  --tp-signal-fail-bg:      rgba(239, 68, 68,  0.12); /* Fail bg tint           */
+  --tp-signal-fail-glow:    rgba(239, 68, 68,  0.30); /* Fail glow / halo       */
+  --tp-signal-pending:      #F59E0B;          /* Amber — scanning / processing   */
+  --tp-signal-pending-bg:   rgba(245, 158, 11, 0.12); /* Pending bg tint        */
+  --tp-signal-pending-glow: rgba(245, 158, 11, 0.30); /* Pending glow           */
+
+  /* ── Cryptographic Accent ────────────────────────────────────────────────*/
+  --tp-accent-cyan:         #06B6D4;          /* ZK proof, session token chips   */
+  --tp-accent-cyan-dim:     rgba(6, 182, 212, 0.10);  /* Tinted background       */
+  --tp-accent-cyan-border:  rgba(6, 182, 212, 0.25);  /* Subtle cyan border      */
+  --tp-accent-emerald:      #34D399;          /* Lighter emerald for strokes     */
+
+  /* ── Elevation — box-shadow ──────────────────────────────────────────────*/
+  --tp-shadow-xs:    0 1px 2px rgba(0,0,0,0.4);
+  --tp-shadow-card:  0 1px 3px rgba(0,0,0,0.5), 0 1px 2px rgba(0,0,0,0.35);
+  --tp-shadow-raised:0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.4);
+  --tp-shadow-modal: 0 20px 60px rgba(0,0,0,0.75);
+  --tp-shadow-glow-pass:    0 0 24px rgba(16, 185, 129, 0.45);
+  --tp-shadow-glow-fail:    0 0 24px rgba(239, 68,  68,  0.45);
+  --tp-shadow-glow-pending: 0 0 24px rgba(245, 158, 11,  0.45);
+  --tp-shadow-glow-cyan:    0 0 16px rgba(6,  182, 212,  0.40);
+
+  /* ── Border Radius ───────────────────────────────────────────────────────*/
+  --tp-radius-xs:   2px;
+  --tp-radius-sm:   4px;
+  --tp-radius-md:   8px;
+  --tp-radius-lg:   12px;
+  --tp-radius-xl:   16px;
+  --tp-radius-2xl:  24px;
+  --tp-radius-full: 9999px;   /* Pill shape for badges / chips                  */
+
+  /* ── Spacing — 8pt grid ──────────────────────────────────────────────────*/
+  --tp-space-1:   4px;
+  --tp-space-2:   8px;
+  --tp-space-3:  12px;
+  --tp-space-4:  16px;
+  --tp-space-5:  20px;
+  --tp-space-6:  24px;
+  --tp-space-8:  32px;
+  --tp-space-10: 40px;
+  --tp-space-12: 48px;
+  --tp-space-16: 64px;
+  --tp-space-20: 80px;
+  --tp-space-24: 96px;
+
+  /* ── Typography — Font Families ─────────────────────────────────────────*/
+  --tp-font-sans:  'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --tp-font-mono:  'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* ── Typography — Type Scale ─────────────────────────────────────────────*/
+  --tp-text-xs:      0.75rem;    /* 12px — timestamps, helper text              */
+  --tp-text-sm:      0.875rem;   /* 14px — labels, secondary body               */
+  --tp-text-base:    1rem;       /* 16px — primary body, form inputs            */
+  --tp-text-lg:      1.125rem;   /* 18px — sub-headings, card titles            */
+  --tp-text-xl:      1.25rem;    /* 20px — section headings                     */
+  --tp-text-2xl:     1.5rem;     /* 24px — page headings                        */
+  --tp-text-3xl:     1.875rem;   /* 30px — hero / dashboard titles              */
+  --tp-text-4xl:     2.25rem;    /* 36px — verification result labels           */
+  --tp-text-display: 4rem;       /* 64px — full-screen VERIFIED / NOT VERIFIED  */
+
+  /* ── Typography — Line Height ────────────────────────────────────────────*/
+  --tp-leading-tight:   1.25;
+  --tp-leading-snug:    1.375;
+  --tp-leading-normal:  1.5;
+  --tp-leading-relaxed: 1.625;
+
+  /* ── Typography — Letter Spacing ─────────────────────────────────────────*/
+  --tp-tracking-tight:  -0.025em;
+  --tp-tracking-normal:  0em;
+  --tp-tracking-wide:    0.05em;
+  --tp-tracking-wider:   0.1em;   /* All-caps labels, badge text               */
+
+  /* ── Transitions ─────────────────────────────────────────────────────────*/
+  --tp-transition-fast:   150ms ease;
+  --tp-transition-normal: 250ms ease;
+  --tp-transition-slow:   400ms ease;
+
+  /* ── Z-index Scale ───────────────────────────────────────────────────────*/
+  --tp-z-base:    0;
+  --tp-z-raised:  10;
+  --tp-z-overlay: 100;
+  --tp-z-modal:   200;
+  --tp-z-toast:   300;
+
+  /* ── Layout ──────────────────────────────────────────────────────────────*/
+  --tp-navbar-height: 56px;
+  --tp-content-max-width: 1200px;
+  --tp-sidebar-width: 240px;
+}
