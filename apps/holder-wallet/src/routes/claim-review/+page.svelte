@@ -64,27 +64,43 @@
   async function generateProof() {
     generating = true;
     try {
-      // TODO (next agent): replace with real API call
-      // const res = await fetch('/api/verifier/verification/sessions/prove', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({
-      //     sessionToken: claim.sessionToken,
-      //     credentialId: matchingCredential.id,
-      //     claimRequest: claim.claimRequest,
-      //   }),
-      // });
-      // const data = await res.json();
-      // proofQrPayload.set({ encodedProof: JSON.stringify(data.proof), sessionToken: claim.sessionToken, expiresAt: claim.expiresAt });
+      if (!matchingCredential) {
+        throw new Error(`No credential found for schema "${claim?.claimRequest?.schemaName}" in your wallet.`);
+      }
 
-      // MOCK — remove when API is wired
-      await new Promise(r => setTimeout(r, 1500));
+      let credentialPayload = matchingCredential.data || matchingCredential;
+      if (typeof credentialPayload === 'string') {
+        try {
+          credentialPayload = JSON.parse(credentialPayload);
+        } catch {}
+      }
+
+      const res = await fetch('/api/verifier/verification/sessions/prove', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionToken: claim.sessionToken,
+          credential: credentialPayload,
+          claimRequest: claim.claimRequest,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.valid === false) {
+        throw new Error(data.errorMessage || data.rejectionReason || 'Proof generation failed');
+      }
+
       proofQrPayload.set({
-        encodedProof: JSON.stringify({ mock: true, sessionToken: claim.sessionToken }),
+        encodedProof: JSON.stringify({
+          sessionToken: claim.sessionToken,
+          proof: data.proof,
+          claimRequest: claim.claimRequest,
+          claimSummary: `${claim.claimRequest.attributeName} ${formatOperator(claim.claimRequest.operator)} ${claim.claimRequest.value}`,
+          expiresAt: claim.expiresAt,
+        }),
         sessionToken: claim.sessionToken,
         expiresAt: claim.expiresAt,
       });
-      // END MOCK
 
       goto('/proof-qr');
     } catch (e) {
