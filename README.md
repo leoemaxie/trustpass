@@ -1,6 +1,10 @@
 # TrustPass
 
-**Privacy-preserving digital identity verification — prove a fact, don't reveal the record.**
+**Privacy-preserving digital identity verification — prove a fact, don't reveal the record.**  
+*Built for NITDA ICSC 2026 Universities Hackathon — Track B.*
+
+[![Acceptance Checkpoints](https://img.shields.io/badge/Checkpoints-1_through_10_Complete-success)](docs/PROGRESS.md)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 ---
 
@@ -10,118 +14,117 @@ Most identity checks today ask for far more than they need. A shop confirming yo
 
 The verifier gets a confirmed result and a signed, non-personal receipt proving the check happened. Nothing else crosses the boundary.
 
-**Core principle:** *Prove, don't reveal.*
+**Core principle:** *Prove, don't show!*
 
 ---
 
-## How it works
+## 5-Minute Quickstart
 
-Three roles:
+### Prerequisites
+- [Docker](https://docs.docker.com/get-docker/) & Docker Compose (v2.0+)
+- *Or for local bare-metal dev:* Rust 1.80+, Go 1.22+, Node.js 20+, and `pnpm`.
 
-- **Issuer** — a trusted authority (e.g. a mock national ID office or university registrar) that creates and signs a credential.
-- **Holder** — the person who owns the credential and controls when a proof is generated from it.
-- **Verifier** — the party asking a specific question, who receives a proof instead of a record.
-
-```
-Credential (signed, private) → Proof (claim-specific, generated on demand) → Verifier → Result
-```
-
-The record never travels. Only the proof does.
-
----
-
-## Demo scenarios
-
-1. **Primary — point-of-sale age verification.** A shop owner, using nothing more than a phone camera and a minimal web page, scans a code and gets a clear verified / not verified result. No login, no jargon, no document exchange.
-2. **Secondary — academic eligibility.** The same underlying engine verifies citizenship, enrollment status, and a minimum GPA threshold, using synthetic student records, to demonstrate that the architecture generalizes rather than being built around a single claim.
-
----
-
-## Architecture at a glance
-
-| Layer | Technology | Purpose |
-|---|---|---|
-| Credential & proof core | Rust — W3C Verifiable Credentials, BBS+ signatures, Noir ZK circuit | Issues signed credentials and generates/verifies selective-disclosure proofs |
-| Application services | Go, over gRPC | Issuance, verification requests, schema registry, receipt logging |
-| Data layer | PostgreSQL, Redis | Credential schemas, revocation state, receipts, short-lived session tokens |
-| Verifier interface | Framework-free PWA | The shop-owner-facing scan screen |
-| Holder & issuer interfaces | Svelte | Credential wallet and admin issuance console |
-| Deployment | Docker Compose | Single-command local environment |
-
-The system is built around a **generic predicate engine** (`attribute` + `operator` + `threshold`) rather than one function per claim type. Age verification, citizenship checks, and GPA thresholds are all the same code path, configured differently — which is what lets the system extend to new claim types by adding a schema, not by writing new proof logic.
-
-Full technical detail lives in [`TRUSTPASS_BUILD_SPEC.md`](./TRUSTPASS_BUILD_SPEC.md).
-
----
-
-## Repository layout
-
-```
-trustpass/
-├── core/               # Rust: credentials, BBS+, Noir circuit, gRPC service
-├── services/           # Go: issuer-api, verifier-api, receipt-service, schema-registry
-├── apps/               # holder-wallet, issuer-console (Svelte); verifier-pwa (vanilla)
-├── db/                 # migrations + synthetic seed data
-├── docker/             # docker-compose.yml and per-service Dockerfiles
-└── docs/               # architecture, threat model, progress log
-```
-
----
-
-## Getting started
-
+### 1. Launch All Services with Docker
 ```bash
 git clone https://github.com/leoemaxie/trustpass.git
 cd trustpass
-cp .env.example .env        # fill in local config; never commit real secrets
-docker compose -f docker/docker-compose.yml up --build
+cp .env.example .env
+
+# Single command to build and launch all 10 services
+docker compose up --build
 ```
 
-This brings up all services (`core`, `issuer-api`, `verifier-api`, `receipt-service`, `schema-registry`, Postgres, Redis) plus the three frontends. See each service's own README (once scaffolded) for standalone dev instructions.
+### 2. Service Access Endpoints
 
-**Seeding demo data:**
+| Application / Service | URL / Port | Purpose |
+|---|---|---|
+| **Verifier PWA** | [`http://localhost:3000`](http://localhost:3000) | Zero-login camera QR scanner & binary result screen |
+| **Holder Wallet** | [`http://localhost:5173`](http://localhost:5173) | Holder credential storage, claim review, & proof display |
+| **Issuer Console** | [`http://localhost:5174`](http://localhost:5174) | Admin dashboard for issuing credentials & testing revocation |
+| **Schema Registry** | [`http://localhost:8081`](http://localhost:8081) | Versioned W3C credential schema definitions |
+| **Issuer API** | [`http://localhost:8082`](http://localhost:8082) | Credential issuance orchestration & revocation registry |
+| **Verifier API** | [`http://localhost:8083`](http://localhost:8083) | Verification session tokens & proof verification |
+| **Receipt Service** | [`http://localhost:8084`](http://localhost:8084) | Audit trail of checks with **zero personal data** |
+| **Cryptographic Core** | [`http://localhost:50051`](http://localhost:50051) | Pure Rust BBS+ BLS12-381 & Noir ZK circuit server |
+| **PostgreSQL** | `localhost:5432` | Relational storage (schemas, issued records, receipts) |
+| **Redis** | `localhost:6379` | High-speed cache and session TTL storage |
+
+---
+
+## End-to-End Demo Scenarios
+
+### Scenario A: Point-of-Sale Age Verification (Age ≥ 18)
+1. Open the **Verifier PWA** at [`http://localhost:3000`](http://localhost:3000). Click **"Start Verification Scan"**. A single-use verification QR code and session token are generated.
+2. Open the **Holder Wallet** at [`http://localhost:5173`](http://localhost:5173).
+   - In Demo Quick Launchers, click **"Test Over 18 (DOB: 1998-05-14)"**.
+   - Review the **Triple-Disclosure Trust Screen** — notice that your Name, ID Number, and exact Date of Birth remain private; only the boolean condition (`Age ≥ 18`) will be proven.
+   - Click **"Generate Cryptographic Proof"**. A QR code with the BBS+ Proof of Knowledge is rendered.
+3. In the Verifier PWA, scan or paste the proof payload.
+   - The verifier immediately displays a full-bleed **VERIFIED (Green)** state!
+   - A non-personal audit receipt is recorded in the receipt service containing only a SHA-256 session hash.
+4. Try scanning with **"Test Under 18 (DOB: 2012-08-20)"** — the verifier unambiguously displays **NOT VERIFIED (Red)** with typed diagnostic reason `PredicateNotSatisfied`.
+
+### Scenario B: Academic Eligibility (Nigerian Citizen & GPA ≥ 3.50)
+1. Open the **Holder Wallet** at [`http://localhost:5173`](http://localhost:5173).
+   - Click **"Academic Check (Pass: GPA 3.85)"**.
+   - Confirm proof generation: evaluates `nationality == "NG"` and `gpa >= 3.50` using the *identical* generic predicate engine (`core::predicate::evaluate_predicate`) without any claim-specific code!
+   - Verifier confirms `VERIFIED`.
+2. Try the failing GPA credential (`gpa = 3.10`) — proof verification rejects cleanly.
+
+### Scenario C: Testing Revocation & Replay Protection
+1. In the **Issuer Console** at [`http://localhost:5174/credentials`](http://localhost:5174/credentials), click **"Revoke"** on any issued credential.
+2. In the **Holder Wallet**, attempt to generate a proof using that credential.
+3. Verification is rejected with typed diagnostic: `CredentialRevoked`.
+4. Try submitting an already-used session token — rejected with `SessionTokenReused`.
+
+---
+
+## Running the Automated Test Suites
+
+Every checkpoint in TrustPass is validated by automated unit, integration, and negative security tests:
 
 ```bash
-# from repo root, once services are up
-./db/seed/seed.sh   # creates synthetic issuers, schemas, and test holders
+# 1. Run all Go application service tests (Checkpoints 4, 8, 9)
+cd services
+go test -v ./...
+cd ..
+
+# 2. Run all Rust Cryptographic Core tests (Checkpoints 1, 2, 3, 5, 6, 7)
+cd core
+cargo test
+cd ..
+
+# 3. Run SvelteKit type checks on frontend apps
+pnpm --filter trustpass-holder-wallet check
+pnpm --filter trustpass-issuer-console check
 ```
 
 ---
 
-## Running the demo
+## Architectural Soundness & Defense in Depth
 
-1. Open `issuer-console`, issue a synthetic credential to a test holder (age check: under- and over-18 examples are seeded; academic check: a passing and failing GPA example are seeded).
-2. Open `holder-wallet` as that holder, review the credential.
-3. Open `verifier-pwa` on a second device or browser tab, choose a claim (e.g. "age ≥ 18"), and generate the scannable code.
-4. Scan it from `holder-wallet`; the wallet shows exactly what's being asked before generating the proof.
-5. `verifier-pwa` displays the result — verified or not verified — and logs a non-personal receipt.
+- **Standards-based credentials** — W3C Verifiable Credentials Data Model 2.0 JSON-LD documents, not proprietary formats.
+- **Genuine Cryptography** — Dock Network BBS+ selective-disclosure signatures over pairing-friendly curve BLS12-381 (`ark-bls12-381`), plus Aztec Noir arithmetic ZK circuit integration. Zero placeholder cryptography.
+- **Generic Predicate Engine** — Zero claim-specific functions (`checkAge()`, `isNigerian()`). All claims evaluate generically via `attribute`, `operator` (`GTE`, `LTE`, `EQ`, `IN_RANGE`), and `threshold`.
+- **Replay & Session Protection** — Ephemeral 120s session tokens bound into the Fiat-Shamir challenge bytes $c = H(pk \parallel pok \parallel session\_token \parallel \dots)$ and consumed atomically upon first use.
+- **Zero Personal Data in Receipts** — Auditable verification receipts retain only non-personal metadata and a SHA-256 session token hash.
+- **Independent from Ledgers** — Self-certifying `did:key` identifiers require no blockchain, external registry, or cloud dependency.
 
----
-
-## What makes this sound, not just functional
-
-- **Standards-based credentials** — W3C Verifiable Credentials Data Model, not a custom format.
-- **Real cryptography** — BBS+ selective-disclosure signatures for general claims, plus a genuine Noir zero-knowledge circuit for the flagship age-check path.
-- **Replay protection** — every verification is bound to a short-lived, single-use session token.
-- **Lifecycle-aware** — credentials expire and can be revoked; both are enforced at proof-verification time.
-- **Receipts without records** — every check produces an auditable, timestamped receipt containing zero personal data.
-
-See [`docs/THREAT_MODEL.md`](./docs/THREAT_MODEL.md) for the full answer to "what stops a false yes."
+See [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) for the complete security analysis answering *"what stops a false yes"*, and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for cryptographic primitive specifications.
 
 ---
 
-## Project documentation
+## Project Documentation
 
-- [`TRUSTPASS_BUILD_SPEC.md`](./TRUSTPASS_BUILD_SPEC.md) — full technical specification: data model, API contracts, build order, and checkpoints.
-- [`AGENTS.md`](./AGENTS.md) — operating rules for AI agents contributing to this codebase.
-- [`docs/PROGRESS.md`](./docs/PROGRESS.md) — running build/session log.
-- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — architecture notes and cited library versions.
-- [`docs/THREAT_MODEL.md`](./docs/THREAT_MODEL.md) — security and privacy analysis.
+- [`TRUSTPASS_BUILD_SPEC.md`](./TRUSTPASS_BUILD_SPEC.md) — Authoritative technical specification, data models, and API contracts.
+- [`AGENTS.md`](./AGENTS.md) — Operating rules, prime directives, and code quality invariants.
+- [`docs/PROGRESS.md`](./docs/PROGRESS.md) — Complete build log and checkpoint acceptance records.
+- [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — Architectural reference, service topologies, and library citations.
+- [`docs/THREAT_MODEL.md`](./docs/THREAT_MODEL.md) — Threat actor taxonomy, attack mitigation vectors, and proof soundness.
+- [`docs/VERIFIER_WALKTHROUGH.md`](./docs/VERIFIER_WALKTHROUGH.md) — 5-step non-technical retail walkthrough for shop owners.
 
 ---
-
-## Status
-
-This is an active hackathon build. See `docs/PROGRESS.md` for current checkpoint status.
 
 ## License
+
+MIT License. Built for the NITDA ICSC 2026 Universities Hackathon.
