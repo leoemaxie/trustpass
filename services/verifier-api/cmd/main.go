@@ -44,11 +44,13 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", h.Healthz)
 	mux.HandleFunc("/verification/sessions", h.HandleCreateSession)
+	mux.HandleFunc("/verification/sessions/prove", h.HandleProve)
 	mux.HandleFunc("/verification/verify", h.HandleVerify)
+	mux.HandleFunc("/verification/receipts", h.HandleListReceipts)
 
 	addr := fmt.Sprintf(":%s", port)
 	log.Printf("Starting verifier-api on %s (session TTL %ds, connecting to core at %s)...", addr, ttlSec, coreURL)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, shared.WithCORS(mux)); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }

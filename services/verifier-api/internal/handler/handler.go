@@ -185,3 +185,99 @@ func (h *VerifierHandler) HandleVerify(w http.ResponseWriter, r *http.Request) {
 		Timestamp:       nowStr,
 	})
 }
+
+type ProveSessionRequest struct {
+	SessionToken string              `json:"sessionToken"`
+	Credential   json.RawMessage     `json:"credential"`
+	ClaimRequest shared.ClaimRequest `json:"claimRequest"`
+}
+
+type ProveSessionResponse struct {
+	Proof        json.RawMessage `json:"proof"`
+	SessionToken string          `json:"sessionToken"`
+}
+
+func (h *VerifierHandler) HandleProve(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req ProveSessionRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if req.SessionToken == "" || len(req.Credential) == 0 {
+		http.Error(w, "sessionToken and credential are required", http.StatusBadRequest)
+		return
+	}
+
+	// 1. Verify session token is valid and unconsumed
+	sess, err := h.sessionStore.Get(req.SessionToken)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"valid":           false,
+			"rejectionReason": err.Error(),
+			"errorMessage":    "Session token is expired or already used",
+		})
+		return
+	}
+
+	// Use claim request from session if not provided in prove request
+	claimReq := req.ClaimRequest
+	if claimReq.SchemaName == "" {
+		claimReq = sess.ClaimRequest
+	}
+
+	// 2. Call core to generate cryptographic selective disclosure proof
+	proofRaw, err := h.coreClient.GenerateProof(shared.CoreGenerateProofRequest{
+		Credential:   req.Credential,
+		ClaimRequest: claimReq,
+		SessionToken: req.SessionToken,
+	})
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
+			"valid":           false,
+			"rejectionReason": "ProofGenerationFailed",
+			"errorMessage":    err.Error(),
+		})
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(ProveSessionResponse{
+		Proof:        proofRaw,
+		SessionToken: req.SessionToken,
+	})
+}
+
+func (h *VerifierHandler) HandleListReceipts(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	verifierID := r.URL.Query().Get("verifierId")
+	if h.receiptClient == nil {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode([]shared.VerificationReceipt{})
+		return
+	}
+
+	list, err := h.receiptClient.ListReceipts(verifierID)
+	if err != nil {
+		http.Error(w, "failed to query receipts: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(list)
+}
+
