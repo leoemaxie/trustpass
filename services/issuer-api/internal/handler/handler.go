@@ -12,15 +12,18 @@ import (
 )
 
 type StoredCredential struct {
-	ID               string          `json:"id"`
-	CredentialURN    string          `json:"credentialUrn,omitempty"`
-	SchemaName       string          `json:"schemaName"`
-	HolderDID        string          `json:"holderDid"`
-	Data             json.RawMessage `json:"data"`
-	IssuedAt         time.Time       `json:"issuedAt"`
-	Revoked          bool            `json:"revoked"`
-	RevocationReason *string         `json:"revocationReason,omitempty"`
-	RevokedAt        *time.Time      `json:"revokedAt,omitempty"`
+	ID               string                 `json:"id"`
+	CredentialURN    string                 `json:"credentialUrn,omitempty"`
+	SchemaName       string                 `json:"schemaName"`
+	Type             string                 `json:"type"`
+	HolderDID        string                 `json:"holderDid"`
+	Data             json.RawMessage        `json:"data"`
+	Attributes       map[string]interface{} `json:"attributes,omitempty"`
+	IssuedAt         time.Time              `json:"issuedAt"`
+	ExpiresAt        *time.Time             `json:"expiresAt,omitempty"`
+	Revoked          bool                   `json:"revoked"`
+	RevocationReason *string                `json:"revocationReason,omitempty"`
+	RevokedAt        *time.Time             `json:"revokedAt,omitempty"`
 }
 
 type IssuerHandler struct {
@@ -49,7 +52,8 @@ func (h *IssuerHandler) Healthz(w http.ResponseWriter, r *http.Request) {
 type IssueRequestBody struct {
 	SchemaName string                 `json:"schemaName"`
 	HolderDID  string                 `json:"holderDid"`
-	Claims     map[string]interface{} `json:"claims"`
+	Claims     map[string]interface{} `json:"claims,omitempty"`
+	Attributes map[string]interface{} `json:"attributes,omitempty"`
 	ExpiresAt  *string                `json:"expiresAt,omitempty"`
 }
 
@@ -65,8 +69,13 @@ func (h *IssuerHandler) HandleIssue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.SchemaName == "" || req.HolderDID == "" || len(req.Claims) == 0 {
-		http.Error(w, "schemaName, holderDid, and claims are required", http.StatusBadRequest)
+	claims := req.Claims
+	if len(claims) == 0 && len(req.Attributes) > 0 {
+		claims = req.Attributes
+	}
+
+	if req.SchemaName == "" || req.HolderDID == "" || len(claims) == 0 {
+		http.Error(w, "schemaName, holderDid, and claims (or attributes) are required", http.StatusBadRequest)
 		return
 	}
 
@@ -74,7 +83,7 @@ func (h *IssuerHandler) HandleIssue(w http.ResponseWriter, r *http.Request) {
 	vcRaw, err := h.coreClient.IssueCredential(shared.CoreIssueRequest{
 		SchemaName: req.SchemaName,
 		HolderDID:  req.HolderDID,
-		Claims:     req.Claims,
+		Claims:     claims,
 		ExpiresAt:  req.ExpiresAt,
 	})
 	if err != nil {
@@ -93,13 +102,23 @@ func (h *IssuerHandler) HandleIssue(w http.ResponseWriter, r *http.Request) {
 		credURN = id
 	}
 
+	var expTime *time.Time
+	if req.ExpiresAt != nil && *req.ExpiresAt != "" {
+		if t, err := time.Parse(time.RFC3339, *req.ExpiresAt); err == nil {
+			expTime = &t
+		}
+	}
+
 	cred := &StoredCredential{
 		ID:            id,
 		CredentialURN: credURN,
 		SchemaName:    req.SchemaName,
+		Type:          req.SchemaName,
 		HolderDID:     req.HolderDID,
 		Data:          vcRaw,
+		Attributes:    claims,
 		IssuedAt:      time.Now().UTC(),
+		ExpiresAt:     expTime,
 		Revoked:       false,
 	}
 
@@ -111,6 +130,46 @@ func (h *IssuerHandler) HandleIssue(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	_, _ = w.Write(vcRaw)
+}
+
+type StatsResponse struct {
+	Total   int `json:"total"`
+	Active  int `json:"active"`
+	Revoked int `json:"revoked"`
+	Expired int `json:"expired"`
+}
+
+func (h *IssuerHandler) HandleStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	now := time.Now().UTC()
+	seen := make(map[string]bool)
+	stats := StatsResponse{}
+
+	for _, cred := range h.store {
+		if seen[cred.ID] {
+			continue
+		}
+		seen[cred.ID] = true
+		stats.Total++
+
+		if cred.Revoked {
+			stats.Revoked++
+		} else if cred.ExpiresAt != nil && now.After(*cred.ExpiresAt) {
+			stats.Expired++
+		} else {
+			stats.Active++
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(stats)
 }
 
 func (h *IssuerHandler) HandleList(w http.ResponseWriter, r *http.Request) {

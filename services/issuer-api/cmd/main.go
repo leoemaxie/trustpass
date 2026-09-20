@@ -27,12 +27,13 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", h.Healthz)
 	mux.HandleFunc("/credentials/issue", h.HandleIssue)
+	mux.HandleFunc("/credentials/stats", h.HandleStats)
 	mux.HandleFunc("/credentials", h.HandleCredentialsRoute)
 	mux.HandleFunc("/credentials/", h.HandleCredentialsRoute)
 
 	addr := fmt.Sprintf(":%s", port)
 	log.Printf("Starting issuer-api on %s (connecting to core at %s)...", addr, coreURL)
-	if err := http.ListenAndServe(addr, mux); err != nil {
+	if err := http.ListenAndServe(addr, shared.WithCORS(mux)); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
