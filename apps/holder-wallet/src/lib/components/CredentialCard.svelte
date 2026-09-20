@@ -18,6 +18,9 @@
 
   import Badge from './Badge.svelte';
   import MonoDisplay from './MonoDisplay.svelte';
+  import { createEventDispatcher } from 'svelte';
+
+  const dispatch = createEventDispatcher();
 
   $: status = credential.revoked
     ? 'fail'
@@ -44,14 +47,14 @@
 
   function formatType(type) {
     // "NationalIDCredential" → "National ID"
-    return type
+    return (type || '')
       .replace('Credential', '')
       .replace(/([A-Z])/g, ' $1')
       .trim();
   }
 </script>
 
-<article
+<div
   class="tp-credential-card"
   class:credential-card--revoked={credential.revoked}
   role="button"
@@ -88,7 +91,7 @@
       <path d="m9 18 6-6-6-6"/>
     </svg>
   </div>
-</article>
+</div>
 
 <style>
   .credential-card--revoked {

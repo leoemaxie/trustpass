@@ -16,6 +16,7 @@
   export let full     = false;
   export let loading  = false;
   export let disabled = false;
+  /** @type {'button'|'submit'|'reset'} */
   export let type     = 'button';
   export let href     = null;
 

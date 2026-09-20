@@ -6,8 +6,14 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api/issuer':   'http://localhost:8081',
-      '/api/verifier': 'http://localhost:8082',
+      '/api/issuer': {
+        target: 'http://localhost:8082',
+        rewrite: (path) => path.replace(/^\/api\/issuer/, ''),
+      },
+      '/api/verifier': {
+        target: 'http://localhost:8083',
+        rewrite: (path) => path.replace(/^\/api\/verifier/, ''),
+      },
     },
   },
   build: {

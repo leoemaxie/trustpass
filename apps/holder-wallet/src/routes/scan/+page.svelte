@@ -13,6 +13,7 @@
   import Button from '$lib/components/Button.svelte';
   import { goto } from '$app/navigation';
   import { onDestroy } from 'svelte';
+  import jsQR from 'jsqr';
 
   let scanning = false;
   let stream = null;

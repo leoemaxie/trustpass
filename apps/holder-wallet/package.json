@@ -4,19 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev":     "vite dev --port 5173",
-    "build":   "vite build",
+    "dev": "vite dev --port 5173",
+    "build": "vite build",
     "preview": "vite preview --port 5173",
-    "check":   "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json"
+    "check": "svelte-kit sync && svelte-check --tsconfig ./jsconfig.json"
   },
   "dependencies": {
     "@sveltejs/kit": "^2.70.3",
-    "svelte": "^5.57.0",
-    "qrcode": "^1.5.4"
+    "jsqr": "^1.4.0",
+    "qrcode": "^1.5.4",
+    "svelte": "^5.57.0"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.10",
-    "vite": "^8.3.0",
-    "svelte-check": "^4.7.6"
+    "svelte-check": "^4.7.6",
+    "vite": "^8.3.0"
   }
 }

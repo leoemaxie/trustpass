@@ -20,7 +20,7 @@
   let interval;
 
   function tick() {
-    remaining = Math.max(0, Math.floor((new Date(expiresAt) - Date.now()) / 1000));
+    remaining = Math.max(0, Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000));
     if (remaining === 0) {
       clearInterval(interval);
       dispatch('expired');
