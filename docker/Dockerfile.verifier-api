@@ -1,0 +1,21 @@
+# Multi-stage Dockerfile for TrustPass Verifier API Service (Go)
+FROM golang:1.22-alpine AS builder
+
+WORKDIR /app/services
+COPY services/go.mod services/go.sum ./
+RUN go mod download
+
+COPY services/ ./
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/verifier-api ./verifier-api/cmd
+
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates curl
+COPY --from=builder /bin/verifier-api /usr/local/bin/verifier-api
+
+ENV PORT=8083
+EXPOSE 8083
+
+HEALTHCHECK --interval=5s --timeout=3s --retries=5 \
+    CMD curl -f http://localhost:8083/healthz || exit 1
+
+ENTRYPOINT ["verifier-api"]

@@ -1,0 +1,200 @@
+version: "3.8"
+
+# Root Compose File — proxies directly to services in docker/
+services:
+  core:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.core
+    container_name: trustpass-core
+    restart: unless-stopped
+    ports:
+      - "50051:50051"
+    environment:
+      - PORT_CORE=50051
+      - DEFAULT_ISSUER_SEED=${DEFAULT_ISSUER_SEED:-13374242}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:50051/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  schema-registry:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.schema-registry
+    container_name: trustpass-schema-registry
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      - PORT=8081
+      - DEFAULT_ISSUER_DID=${DEFAULT_ISSUER_DID:-did:key:zUC724vsrMwHvKyqDdHtrh7z2GNe5xbsfgivth466P4vm2iaJLW9kK48DbgKa32yL944yK9k}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  receipt-service:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.receipt-service
+    container_name: trustpass-receipt-service
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      - PORT=8084
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8084/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  issuer-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.issuer-api
+    container_name: trustpass-issuer-api
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      - PORT=8082
+      - CORE_API_URL=http://core:50051
+    depends_on:
+      core:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  verifier-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.verifier-api
+    container_name: trustpass-verifier-api
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      - PORT=8083
+      - CORE_API_URL=http://core:50051
+      - RECEIPT_SERVICE_URL=http://receipt-service:8084
+      - VERIFICATION_SESSION_TTL_SECONDS=${VERIFICATION_SESSION_TTL_SECONDS:-120}
+    depends_on:
+      core:
+        condition: service_healthy
+      receipt-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: trustpass-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=${POSTGRES_DB:-trustpass}
+    volumes:
+      - ./db/migrations/001_initial_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+      - ./db/seed/seed.sql:/docker-entrypoint-initdb.d/02_seed.sql
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d trustpass"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    container_name: trustpass-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  verifier-pwa:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.verifier-pwa
+    container_name: trustpass-verifier-pwa
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    depends_on:
+      verifier-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  holder-wallet:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.holder-wallet
+    container_name: trustpass-holder-wallet
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    depends_on:
+      issuer-api:
+        condition: service_healthy
+      verifier-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+  issuer-console:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.issuer-console
+    container_name: trustpass-issuer-console
+    restart: unless-stopped
+    ports:
+      - "5174:5174"
+    depends_on:
+      issuer-api:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5174/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 3s
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -17,6 +17,7 @@ services/bin/
 # Node / Frontend
 node_modules/
 dist/
+build/
 .svelte-kit/
 
 # OS / IDE

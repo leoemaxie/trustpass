@@ -1,0 +1,21 @@
+# Multi-stage Dockerfile for TrustPass Receipt Service (Go)
+FROM golang:1.22-alpine AS builder
+
+WORKDIR /app/services
+COPY services/go.mod services/go.sum ./
+RUN go mod download
+
+COPY services/ ./
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/receipt-service ./receipt-service/cmd
+
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates curl
+COPY --from=builder /bin/receipt-service /usr/local/bin/receipt-service
+
+ENV PORT=8084
+EXPOSE 8084
+
+HEALTHCHECK --interval=5s --timeout=3s --retries=5 \
+    CMD curl -f http://localhost:8084/healthz || exit 1
+
+ENTRYPOINT ["receipt-service"]

@@ -1,0 +1,21 @@
+# Multi-stage Dockerfile for TrustPass Schema Registry Service (Go)
+FROM golang:1.22-alpine AS builder
+
+WORKDIR /app/services
+COPY services/go.mod services/go.sum ./
+RUN go mod download
+
+COPY services/ ./
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /bin/schema-registry ./schema-registry/cmd
+
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates curl
+COPY --from=builder /bin/schema-registry /usr/local/bin/schema-registry
+
+ENV PORT=8081
+EXPOSE 8081
+
+HEALTHCHECK --interval=5s --timeout=3s --retries=5 \
+    CMD curl -f http://localhost:8081/healthz || exit 1
+
+ENTRYPOINT ["schema-registry"]
