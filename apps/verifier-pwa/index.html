@@ -11,9 +11,6 @@
   <!-- PWA manifest -->
   <link rel="manifest" href="/manifest.json" />
 
-  <!-- Preload fonts before any paint -->
-  <link rel="preload" href="/fonts/inter-variable.woff2" as="font" type="font/woff2" crossorigin />
-
   <!-- Styles — ordered: tokens → base → components → pwa-specific -->
   <link rel="stylesheet" href="/shared/tokens.css" />
   <link rel="stylesheet" href="/shared/base.css" />
@@ -82,6 +79,31 @@
           </svg>
           Start Scan
         </button>
+
+        <div id="manual-panel" style="margin-top: 0.75rem; width: 100%;">
+          <button
+            id="btn-toggle-manual"
+            class="tp-btn tp-btn-ghost tp-btn-sm tp-btn-full"
+            style="color: var(--tp-text-muted); font-size: 0.8rem;"
+          >
+            Manual / Test Input
+          </button>
+          <div id="manual-input-box" style="display: none; margin-top: 0.5rem; flex-direction: column; gap: 0.5rem;">
+            <textarea
+              id="manual-qr-payload"
+              class="tp-input"
+              rows="3"
+              placeholder='Paste QR JSON payload {"sessionToken":"...","proof":{...}}'
+              style="font-family: var(--tp-font-mono); font-size: 0.75rem; width: 100%; box-sizing: border-box;"
+            ></textarea>
+            <button
+              id="btn-verify-manual"
+              class="tp-btn tp-btn-secondary tp-btn-sm tp-btn-full"
+            >
+              Verify Pasted Proof
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 

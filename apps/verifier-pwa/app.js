@@ -15,7 +15,7 @@
  */
 
 const CONFIG = {
-  VERIFIER_API_BASE: window.VERIFIER_API_BASE || 'http://localhost:8082',
+  VERIFIER_API_BASE: window.VERIFIER_API_BASE || 'http://localhost:8083',
   SCAN_INTERVAL_MS: 200,  // how often to decode a camera frame
 };
 
@@ -66,7 +66,7 @@ async function startCamera() {
         ctx.drawImage(video, 0, 0);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         /* global jsQR */
-        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+        const code = (window.jsQR || jsQR)(imageData.data, imageData.width, imageData.height, {
           inversionAttempts: 'dontInvert',
         });
         if (code?.data) {
@@ -80,6 +80,8 @@ async function startCamera() {
     tick();
   } catch (err) {
     showToast('Camera unavailable: ' + err.message, 'fail');
+    const manualPanel = $('manual-panel');
+    if (manualPanel) manualPanel.style.display = 'block';
   }
 }
 
@@ -93,65 +95,71 @@ function stopCamera() {
 }
 
 /* ── QR payload handling ─────────────────────────────────────────────── */
-/**
- * TODO (next agent): Parse the real QR payload format from verifier-api.
- * The verifier-api encodes { sessionToken, claimRequest } as JSON in the QR.
- * Expected shape:
- *   { sessionToken: string, claimRequest: { schemaName, attributeName, operator, value } }
- */
 async function handleQRCode(raw) {
   showScreen('processing');
   let payload;
   try {
-    payload = JSON.parse(raw);
+    payload = typeof raw === 'string' ? JSON.parse(raw) : raw;
   } catch {
     showResult('fail', null, 'Invalid QR code — could not parse payload.');
     return;
   }
 
-  if (!payload.sessionToken || !payload.claimRequest) {
-    showResult('fail', null, 'QR code is missing required fields.');
+  if (!payload.sessionToken || (!payload.proof && !payload.encodedProof)) {
+    showResult('fail', null, 'QR code is missing sessionToken or proof.');
     return;
+  }
+
+  // Parse nested proof if encoded as string
+  if (!payload.proof && payload.encodedProof) {
+    try {
+      payload.proof = JSON.parse(payload.encodedProof);
+    } catch {
+      payload.proof = payload.encodedProof;
+    }
   }
 
   await verifyProof(payload);
 }
 
 /* ── API: verify proof ───────────────────────────────────────────────── */
-/**
- * TODO (next agent): This function submits the holder-generated proof QR
- * to verifier-api POST /verification/verify.
- *
- * For now it demonstrates the screen flow with a mock response.
- * Replace the mock block with a real fetch() call.
- */
 async function verifyProof(payload) {
   try {
-    // TODO: Replace mock with real API call:
-    // const res = await fetch(`${CONFIG.VERIFIER_API_BASE}/verification/verify`, {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify(payload),
-    // });
-    // const data = await res.json();
+    const res = await fetch(`${CONFIG.VERIFIER_API_BASE}/verification/verify`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sessionToken: payload.sessionToken,
+        proof: payload.proof,
+        verifierId: payload.verifierId || 'verifier-pos-01',
+        issuerDid: payload.issuerDid,
+      }),
+    });
 
-    // --- MOCK RESPONSE (remove when API is wired) ---
-    await new Promise(r => setTimeout(r, 1200)); // simulate network
-    const data = { valid: true, claimSummary: 'Age ≥ 18', receiptId: 'mock-receipt-001' };
-    // --- END MOCK ---
+    const data = await res.json();
 
-    const claimSummary = data.claimSummary || formatClaim(payload.claimRequest);
+    const claimSummary = data.receipt?.claimRequest
+      ? formatClaim(data.receipt.claimRequest)
+      : (payload.claimSummary || (payload.claimRequest ? formatClaim(payload.claimRequest) : 'Verified Claim'));
+
     showResult(data.valid ? 'pass' : 'fail', claimSummary, data.rejectionReason);
-    storeReceipt({ result: data.valid, claimSummary, receiptId: data.receiptId });
+
+    storeReceipt({
+      result: data.valid,
+      claimSummary,
+      receiptId: data.receiptId || (data.receipt ? data.receipt.id : 'receipt-' + Date.now()),
+      timestamp: data.timestamp || new Date().toISOString(),
+      rejectionReason: data.rejectionReason,
+    });
   } catch (err) {
-    showResult('fail', null, 'Network error — could not reach verification service.');
+    showResult('fail', null, 'Network error — could not reach verification service at ' + CONFIG.VERIFIER_API_BASE);
   }
 }
 
 /* ── Result rendering ────────────────────────────────────────────────── */
 function showResult(type, claimSummary, reason) {
   if (type === 'pass') {
-    $('pass-claim-text').textContent = claimSummary || '';
+    $('pass-claim-text').textContent = claimSummary || 'Condition Satisfied';
     showScreen('pass');
   } else {
     $('fail-reason-text').textContent = formatReason(reason);
@@ -177,29 +185,69 @@ function formatReason(reason) {
 
 function formatClaim(req) {
   if (!req) return '';
-  return `${req.attributeName} ${req.operator} ${req.value}`;
+  const opMap = { GTE: '≥', EQ: '=', IN_SET: 'in', BEFORE_DATE: 'born before' };
+  const op = opMap[req.operator] || req.operator;
+  return `${req.attributeName} ${op} ${req.value}`;
 }
 
 /* ── Receipts ────────────────────────────────────────────────────────── */
 function storeReceipt(receipt) {
-  receipt.timestamp = new Date().toISOString();
-  state.receipts.unshift(receipt);
+  if (!receipt.timestamp) {
+    receipt.timestamp = new Date().toISOString();
+  }
+  // Deduplicate
+  state.receipts = [receipt, ...state.receipts.filter(r => r.receiptId !== receipt.receiptId)];
   localStorage.setItem('tp_receipts', JSON.stringify(state.receipts.slice(0, 50)));
 }
 
-function renderReceipts() {
+async function renderReceipts() {
   const list = $('receipts-list');
-  if (!state.receipts.length) return; // empty state already in HTML
+
+  // Try to sync with server receipts
+  try {
+    const res = await fetch(`${CONFIG.VERIFIER_API_BASE}/verification/receipts?verifierId=verifier-pos-01`);
+    if (res.ok) {
+      const serverReceipts = await res.json();
+      if (Array.isArray(serverReceipts)) {
+        serverReceipts.forEach(sr => {
+          storeReceipt({
+            result: sr.result,
+            claimSummary: formatClaim(sr.claimRequest),
+            receiptId: sr.id,
+            timestamp: sr.timestamp,
+          });
+        });
+      }
+    }
+  } catch {
+    // offline or backend unreachable, fallback to localStorage
+  }
+
+  if (!state.receipts.length) {
+    list.innerHTML = `
+      <div class="tp-empty">
+        <div class="tp-empty__icon" aria-hidden="true">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+        </div>
+        <p class="tp-empty__title">No receipts yet</p>
+        <p class="tp-empty__description">Completed verifications will appear here.</p>
+      </div>
+    `;
+    return;
+  }
 
   list.innerHTML = state.receipts.map(r => `
     <div class="pwa-receipt-item">
       <div class="pwa-receipt-item__indicator pwa-receipt-item__indicator--${r.result ? 'pass' : 'fail'}" aria-hidden="true"></div>
       <div class="pwa-receipt-item__body">
-        <p class="pwa-receipt-item__predicate">${escHtml(r.claimSummary || 'Unknown claim')}</p>
-        <p class="pwa-receipt-item__time">${formatTime(r.timestamp)}</p>
+        <p class="pwa-receipt-item__predicate">${escHtml(r.claimSummary || 'Verification Check')}</p>
+        <p class="pwa-receipt-item__time">${formatTime(r.timestamp)} · ID: ${escHtml(String(r.receiptId || '').slice(0, 8))}…</p>
       </div>
       <span class="pwa-receipt-item__result pwa-receipt-item__result--${r.result ? 'pass' : 'fail'}">
-        ${r.result ? 'PASS' : 'FAIL'}
+        ${r.result ? 'VERIFIED' : 'FAILED'}
       </span>
     </div>
   `).join('');
@@ -246,6 +294,27 @@ function bindEvents() {
       showScreen('scan');
     });
   });
+
+  const toggleBtn = $('btn-toggle-manual');
+  const manualBox = $('manual-input-box');
+  const verifyManualBtn = $('btn-verify-manual');
+
+  if (toggleBtn && manualBox) {
+    toggleBtn.addEventListener('click', () => {
+      manualBox.style.display = manualBox.style.display === 'none' ? 'flex' : 'none';
+    });
+  }
+
+  if (verifyManualBtn) {
+    verifyManualBtn.addEventListener('click', () => {
+      const text = $('manual-qr-payload')?.value?.trim();
+      if (!text) {
+        showToast('Please paste a QR payload JSON first', 'fail');
+        return;
+      }
+      handleQRCode(text);
+    });
+  }
 }
 
 /* ── Init ────────────────────────────────────────────────────────────── */
