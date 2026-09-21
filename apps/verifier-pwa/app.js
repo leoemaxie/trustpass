@@ -47,54 +47,129 @@ function showScreen(name) {
   });
 }
 
-/* ── Camera & jsQR ───────────────────────────────────────────────────── */
+/* ── Camera & QR Scanner ─────────────────────────────────────────────── */
 async function startCamera() {
   const video  = $('scanner-video');
   const canvas = $('scanner-canvas');
   const ctx    = canvas.getContext('2d', { willReadFrequently: true });
+  const scanBtn = $('btn-start-scan');
+
+  // Update button to show active scanning state
+  if (scanBtn) {
+    scanBtn.disabled = true;
+    scanBtn.innerHTML = `
+      <div class="tp-spinner tp-spinner-sm" style="width:18px;height:18px;border-color:currentColor;border-top-color:transparent;" aria-hidden="true"></div>
+      <span>Scanning for QR code…</span>
+    `;
+  }
 
   try {
     state.stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' },
+      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
     });
     video.srcObject = state.stream;
     await video.play();
     state.scanning = true;
 
-    function tick() {
+    // Check for native BarcodeDetector support
+    let nativeDetector = null;
+    if ('BarcodeDetector' in window) {
+      try {
+        const formats = await window.BarcodeDetector.getSupportedFormats();
+        if (formats.includes('qr_code')) {
+          nativeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        }
+      } catch (e) {
+        console.warn('BarcodeDetector format check warning:', e);
+      }
+    }
+
+    let lastScanTime = 0;
+
+    async function tick(now) {
       if (!state.scanning) return;
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        canvas.width  = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        /* global jsQR */
-        const code = (window.jsQR || jsQR)(imageData.data, imageData.width, imageData.height, {
-          inversionAttempts: 'dontInvert',
-        });
-        if (code?.data) {
-          stopCamera();
-          handleQRCode(code.data);
-          return;
+
+      // Scan every ~120ms to avoid locking the UI thread
+      if (now - lastScanTime >= 120 && video.readyState >= video.HAVE_CURRENT_DATA) {
+        lastScanTime = now;
+
+        // Try native BarcodeDetector first (fastest, hardware accelerated)
+        if (nativeDetector) {
+          try {
+            const barcodes = await nativeDetector.detect(video);
+            if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+              stopCamera();
+              handleQRCode(barcodes[0].rawValue);
+              return;
+            }
+          } catch (e) {
+            // fallback to jsQR below
+          }
+        }
+
+        // jsQR fallback
+        if (video.videoWidth > 0 && video.videoHeight > 0) {
+          canvas.width  = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          
+          /* global jsQR */
+          const qrFn = window.jsQR || (typeof jsQR !== 'undefined' ? jsQR : null);
+          if (qrFn) {
+            const code = qrFn(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: 'attemptBoth',
+            });
+            if (code?.data) {
+              stopCamera();
+              handleQRCode(code.data);
+              return;
+            }
+          }
         }
       }
-      state.scanLoop = setTimeout(tick, CONFIG.SCAN_INTERVAL_MS);
+
+      state.scanLoop = requestAnimationFrame(tick);
     }
-    tick();
+
+    state.scanLoop = requestAnimationFrame(tick);
   } catch (err) {
     showToast('Camera unavailable: ' + err.message, 'fail');
+    resetScanButton();
     const manualPanel = $('manual-panel');
     if (manualPanel) manualPanel.style.display = 'block';
   }
 }
 
+function resetScanButton() {
+  const scanBtn = $('btn-start-scan');
+  if (scanBtn) {
+    scanBtn.disabled = false;
+    scanBtn.innerHTML = `
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <path d="M3 7V5a2 2 0 0 1 2-2h2"/>
+        <path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+        <path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+        <path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+        <rect width="7" height="7" x="7" y="7" rx="1"/>
+      </svg>
+      Start Scan
+    `;
+  }
+}
+
 function stopCamera() {
   state.scanning = false;
-  clearTimeout(state.scanLoop);
+  if (state.scanLoop) {
+    cancelAnimationFrame(state.scanLoop);
+    clearTimeout(state.scanLoop);
+    state.scanLoop = null;
+  }
   if (state.stream) {
     state.stream.getTracks().forEach(t => t.stop());
     state.stream = null;
   }
+  resetScanButton();
 }
 
 /* ── QR payload handling ─────────────────────────────────────────────── */

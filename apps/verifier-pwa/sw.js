@@ -3,7 +3,7 @@
  * Cache-first for core static assets so the app works reliably on weak or offline networks.
  */
 
-const CACHE_NAME = 'trustpass-verifier-v2';
+const CACHE_NAME = 'trustpass-verifier-v3';
 
 const STATIC_ASSETS = [
   '/',
