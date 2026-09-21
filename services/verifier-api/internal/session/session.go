@@ -3,6 +3,7 @@ package session
 import (
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"sync"
 	"time"
@@ -19,6 +20,7 @@ var (
 type VerificationSession struct {
 	SessionToken string              `json:"sessionToken"`
 	ClaimRequest shared.ClaimRequest `json:"claimRequest"`
+	Proof        json.RawMessage     `json:"proof,omitempty"`
 	CreatedAt    time.Time           `json:"createdAt"`
 	ExpiresAt    time.Time           `json:"expiresAt"`
 	Consumed     bool                `json:"consumed"`
@@ -27,6 +29,7 @@ type VerificationSession struct {
 type Store interface {
 	CreateSession(claim shared.ClaimRequest, ttl time.Duration) (*VerificationSession, error)
 	Get(token string) (*VerificationSession, error)
+	SetProof(token string, proof json.RawMessage) error
 	MarkConsumed(token string) error
 	Consume(token string) (*VerificationSession, error)
 }
@@ -84,6 +87,25 @@ func (s *MemoryStore) Get(token string) (*VerificationSession, error) {
 	}
 
 	return sess, nil
+}
+
+func (s *MemoryStore) SetProof(token string, proof json.RawMessage) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	sess, exists := s.sessions[token]
+	if !exists {
+		return ErrSessionNotFound
+	}
+	if time.Now().UTC().After(sess.ExpiresAt) {
+		return ErrSessionExpired
+	}
+	if sess.Consumed {
+		return ErrSessionReused
+	}
+
+	sess.Proof = proof
+	return nil
 }
 
 func (s *MemoryStore) MarkConsumed(token string) error {

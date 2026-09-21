@@ -133,9 +133,15 @@ func (h *VerifierHandler) HandleVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Call core to cryptographically verify BBS+ proof
+	// 2. Resolve proof: use supplied proof, or fall back to proof submitted into session
+	proofToVerify := req.Proof
+	if len(proofToVerify) == 0 && len(sess.Proof) > 0 {
+		proofToVerify = sess.Proof
+	}
+
+	// Call core to cryptographically verify BBS+ proof
 	coreResp, err := h.coreClient.VerifyProof(shared.CoreVerifyProofRequest{
-		Proof:                req.Proof,
+		Proof:                proofToVerify,
 		ExpectedSessionToken: req.SessionToken,
 		IssuerDID:            req.IssuerDID,
 	})
@@ -249,6 +255,9 @@ func (h *VerifierHandler) HandleProve(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
+
+	// Save proof into session for relay to verifier
+	_ = h.sessionStore.SetProof(req.SessionToken, proofRaw)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

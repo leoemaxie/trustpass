@@ -198,8 +198,8 @@ async function handleQRCode(raw) {
     };
   }
 
-  if (!payload.sessionToken || (!payload.proof && !payload.encodedProof)) {
-    showResult('fail', null, 'QR code is missing sessionToken or proof.');
+  if (!payload.sessionToken) {
+    showResult('fail', null, 'QR code is missing verification session token.');
     return;
   }
 
