@@ -9,18 +9,21 @@
  */
 
 import { writable, derived } from 'svelte/store';
+import { browser } from '$app/environment';
 
 // ── Credential store ─────────────────────────────────────────────────────────
 
 function createWalletStore() {
-  const stored = localStorage.getItem('tp_wallet_credentials');
+  const stored = browser ? localStorage.getItem('tp_wallet_credentials') : null;
   const initial = stored ? JSON.parse(stored) : [];
 
   const { subscribe, set, update } = writable(initial);
 
-  // Persist on every change
+  // Persist on every change when running in browser
   subscribe(creds => {
-    localStorage.setItem('tp_wallet_credentials', JSON.stringify(creds));
+    if (browser) {
+      localStorage.setItem('tp_wallet_credentials', JSON.stringify(creds));
+    }
   });
 
   return {
