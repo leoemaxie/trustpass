@@ -15,7 +15,7 @@ COPY core/src ./src
 COPY core/proto ./proto
 COPY core/circuits ./circuits
 
-RUN cargo build --release --bin proof-core
+RUN cargo build --release --bin trustpass-core
 
 # Minimal runtime stage
 FROM debian:bookworm-slim
@@ -26,7 +26,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-COPY --from=builder /app/target/release/proof-core /usr/local/bin/proof-core
+COPY --from=builder /app/target/release/trustpass-core /usr/local/bin/trustpass-core
 COPY core/circuits /app/circuits
 
 ENV PORT_CORE=50051
@@ -35,4 +35,4 @@ EXPOSE 50051
 HEALTHCHECK --interval=5s --timeout=3s --retries=5 \
     CMD curl -f http://localhost:50051/healthz || exit 1
 
-ENTRYPOINT ["proof-core"]
+ENTRYPOINT ["trustpass-core"]
