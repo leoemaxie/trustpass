@@ -1,5 +1,5 @@
-# Multi-stage Dockerfile for TrustPass Cryptographic Core (Rust)
-FROM rust:1.80-bookworm AS builder
+ARG RUST_VERSION=1.85-bookworm
+FROM rust:${RUST_VERSION} AS builder
 
 WORKDIR /app
 

@@ -6,6 +6,8 @@ services:
     build:
       context: ..
       dockerfile: docker/Dockerfile.core
+      args:
+        RUST_VERSION: 1.85-bookworm
     container_name: trustpass-core
     restart: unless-stopped
     ports:

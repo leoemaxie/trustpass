@@ -22,7 +22,7 @@ The verifier gets a confirmed result and a signed, non-personal receipt proving 
 
 ### Prerequisites
 - [Docker](https://docs.docker.com/get-docker/) & Docker Compose (v2.0+)
-- *Or for local bare-metal dev:* Rust 1.80+, Go 1.22+, Node.js 20+, and `pnpm`.
+- *Or for local bare-metal dev:* Rust 1.85+, Go 1.22+, Node.js 20+, and `pnpm`.
 
 ### 1. Launch All Services with Docker
 ```bash
