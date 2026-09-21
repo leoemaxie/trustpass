@@ -121,6 +121,7 @@ See [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) for the complete security ana
 - [`docs/PROGRESS.md`](./docs/PROGRESS.md) — Complete build log and checkpoint acceptance records.
 - [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — Architectural reference, service topologies, and library citations.
 - [`docs/THREAT_MODEL.md`](./docs/THREAT_MODEL.md) — Threat actor taxonomy, attack mitigation vectors, and proof soundness.
+- [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) — Production deployment guide with Oracle Cloud Infrastructure (OCI) reference and SSL configuration.
 - [`docs/VERIFIER_WALKTHROUGH.md`](./docs/VERIFIER_WALKTHROUGH.md) — 5-step non-technical retail walkthrough for shop owners.
 
 ---
