@@ -1,7 +1,7 @@
 version: "3.8"
 
-# Root Compose File — proxies directly to services in docker/
 services:
+  # 1. Cryptographic Core (Rust: BBS+ Proofs & Noir ZK circuit)
   core:
     build:
       context: .
@@ -22,6 +22,7 @@ services:
       retries: 5
       start_period: 5s
 
+  # 2. Schema Registry (Go: Credential Schemas)
   schema-registry:
     build:
       context: .
@@ -40,6 +41,7 @@ services:
       retries: 5
       start_period: 3s
 
+  # 3. Receipt Service (Go: Non-personal verification audit trail)
   receipt-service:
     build:
       context: .
@@ -57,6 +59,7 @@ services:
       retries: 5
       start_period: 3s
 
+  # 4. Issuer API (Go: Credential Issuance & Revocation)
   issuer-api:
     build:
       context: .
@@ -78,6 +81,7 @@ services:
       retries: 5
       start_period: 3s
 
+  # 5. Verifier API (Go: Session tokens & Verification orchestration)
   verifier-api:
     build:
       context: .
@@ -103,6 +107,7 @@ services:
       retries: 5
       start_period: 3s
 
+  # 6. Database (PostgreSQL 15)
   postgres:
     image: postgres:15-alpine
     container_name: trustpass-postgres
@@ -124,6 +129,7 @@ services:
       retries: 5
       start_period: 5s
 
+  # 7. In-memory Cache (Redis 7)
   redis:
     image: redis:7-alpine
     container_name: trustpass-redis
@@ -139,6 +145,7 @@ services:
       retries: 5
       start_period: 3s
 
+  # 8. Verifier PWA (Framework-free shop-owner UI)
   verifier-pwa:
     build:
       context: .
@@ -157,6 +164,7 @@ services:
       retries: 5
       start_period: 3s
 
+  # 9. Holder Wallet (SvelteKit)
   holder-wallet:
     build:
       context: .
@@ -177,6 +185,7 @@ services:
       retries: 5
       start_period: 3s
 
+  # 10. Issuer Console (SvelteKit)
   issuer-console:
     build:
       context: .

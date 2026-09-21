@@ -21,7 +21,7 @@ Keep this table current — update it whenever a checkpoint's status changes. Th
 | 7 | Noir circuit for flagship age claim | acceptance criteria met | 2026-09-13 |
 | 8 | `verifier-pwa` end to end | acceptance criteria met | 2026-09-20 |
 | 9 | `holder-wallet` and `issuer-console` end to end | acceptance criteria met | 2026-09-20 |
-| 10 | Docker Compose, docs, threat model | not started | — |
+| 10 | Docker Compose, docs, threat model | acceptance criteria met | 2026-09-20 |
 
 Status values: `not started` / `in progress` / `acceptance criteria met`.
 
@@ -210,6 +210,49 @@ Copy this template for each new session:
   - Authored `services/verifier-api/internal/handler/checkpoint8_9_acceptance_test.go` verifying the entire end-to-end API lifecycle: adult pass, minor fail, academic eligibility pass, low GPA fail, replay rejection (`SessionTokenReused`), and revocation rejection (`CredentialRevoked`), confirming zero personal data in receipts.
 **Open SPEC-GAP flags introduced this session:** none
 **Next step:** Begin Checkpoint 10 — Docker Compose, docs, and threat model writeup. Create `docker-compose.yml` to orchestrate all services and frontends with a single command, and complete `docs/ARCHITECTURE.md` and `docs/THREAT_MODEL.md` addressing all four non-negotiable requirements.
+
+---
+
+## Session 2026-09-20 (Checkpoint 10)
+**Model:** Antigravity (Advanced Agentic Coding)
+**Checkpoint worked on:** Checkpoint 10 — Docker Compose, docs, and threat model writeup
+**Status:** acceptance criteria met
+**What changed:**
+- **Docker Orchestration & Multi-Stage Dockerfiles:**
+  - Created `docker/Dockerfile.core` for Rust cryptographic core service with BLS12-381 BBS+ and Noir circuits.
+  - Created `docker/Dockerfile.schema-registry`, `docker/Dockerfile.issuer-api`, `docker/Dockerfile.verifier-api`, and `docker/Dockerfile.receipt-service` for Go application services.
+  - Created `docker/Dockerfile.verifier-pwa` with Nginx Alpine, custom SPA/PWA caching headers, and HTTP `/healthz`.
+  - Created `docker/Dockerfile.holder-wallet` and `docker/Dockerfile.issuer-console` with Node.js 20 build stage and Nginx Alpine runtime stage, serving static SvelteKit builds on ports 5173 and 5174.
+  - Created `docker/nginx-3000.conf`, `docker/nginx-5173.conf`, and `docker/nginx-5174.conf` ensuring `/healthz` returns 200 OK and client-side SPA routing functions seamlessly.
+  - Created `docker/docker-compose.yml` and root `docker-compose.yml` orchestrating all 10 services (`core`, `schema-registry`, `issuer-api`, `verifier-api`, `receipt-service`, `verifier-pwa`, `holder-wallet`, `issuer-console`, PostgreSQL 15, and Redis 7) with health checks on every HTTP service.
+  - Created `.env.example` documenting all ports, URLs, database credentials, and session TTL configuration with zero committed secrets.
+- **Architectural Reference (`docs/ARCHITECTURE.md`):**
+  - Updated with full system topology ASCII diagram, service-to-port mapping table, and communication pathways.
+  - Explicitly addressed each of the Four Non-Negotiable Requirements in Section 2, citing the exact cryptographic and architectural mechanisms satisfying each.
+- **Threat Model & Security Writeup (`docs/THREAT_MODEL.md`):**
+  - Authored comprehensive security analysis directly answering "what stops a false yes."
+  - Categorized 5 threat actor profiles (Dishonest Holder, Replay Attacker, Malicious Verifier, Revoked/Expired Credential Holder, Rogue Issuer).
+  - Detailed 9 attack defense vectors across cryptographic forgery, ephemeral Fiat-Shamir session binding, single-use token consumption, TTL expiration, predicate tampering, credential expiration, real-time revocation, attribute permutation canonicalization, and Noir circuit polynomial soundness.
+  - Provided Non-Negotiable Requirements verification matrix mapping requirements to defenses and automated tests.
+  - Documented unlinkability across verifications and zero personal data guarantees in `verification_receipts`.
+- **Developer & Judge Quickstart (`README.md`):**
+  - Rewrote `README.md` with a 5-minute single-command quickstart (`docker compose up --build`), full service endpoint table, step-by-step walkthroughs of both demo scenarios (Age Verification & Academic Eligibility), revocation tests, and automated test execution instructions.
+**Open SPEC-GAP flags introduced this session:** none
+**Next step:** The full TrustPass platform (Checkpoints 1 through 10) is complete, passing all acceptance criteria, tests, and documentation standards.
+
+---
+
+## Session 2026-09-21 — docker-compose-consolidation
+**Model:** Gemini 3.8 Flash
+**Checkpoint worked on:** 10 — Docker Compose, docs, threat model
+**Status:** acceptance criteria met
+**What changed:**
+- Added numbered service explanation comments to root `docker-compose.yml`.
+- Removed redundant `docker/docker-compose.yml` to standardize single root entry point.
+**Open SPEC-GAP flags introduced this session:** none
+**Next step:** Ready for platform deployment and evaluation.
+
+
 
 
 
