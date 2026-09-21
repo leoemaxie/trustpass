@@ -2,9 +2,14 @@
 
 **Privacy-preserving digital identity verification — prove a fact, don't reveal the record.**  
 *Built for NITDA ICSC 2026 Universities Hackathon — Track B.*
-
-[![Acceptance Checkpoints](https://img.shields.io/badge/Checkpoints-1_through_10_Complete-success)](docs/PROGRESS.md)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-1.85%2B-orange.svg?logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Go](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?logo=go&logoColor=white)](https://go.dev/)
+[![SvelteKit](https://img.shields.io/badge/SvelteKit-5-FF3E00.svg?logo=svelte&logoColor=white)](https://kit.svelte.dev/)
+[![Noir ZK](https://img.shields.io/badge/Noir-ZK%20Circuits-black.svg?logo=noir&logoColor=white)](https://noir-lang.org/)
+[![Docker Compose](https://img.shields.io/badge/Docker-Compose%20v2-2496ED.svg?logo=docker&logoColor=white)](https://www.docker.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-4169E1.svg?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-7-DC382D.svg?logo=redis&logoColor=white)](https://redis.io/)
 
 ---
 
@@ -118,7 +123,6 @@ See [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) for the complete security ana
 
 - [`TRUSTPASS_BUILD_SPEC.md`](./TRUSTPASS_BUILD_SPEC.md) — Authoritative technical specification, data models, and API contracts.
 - [`AGENTS.md`](./AGENTS.md) — Operating rules, prime directives, and code quality invariants.
-- [`docs/PROGRESS.md`](./docs/PROGRESS.md) — Complete build log and checkpoint acceptance records.
 - [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) — Architectural reference, service topologies, and library citations.
 - [`docs/THREAT_MODEL.md`](./docs/THREAT_MODEL.md) — Threat actor taxonomy, attack mitigation vectors, and proof soundness.
 - [`docs/DEPLOYMENT.md`](./docs/DEPLOYMENT.md) — Production deployment guide with Oracle Cloud Infrastructure (OCI) reference and SSL configuration.
@@ -128,4 +132,4 @@ See [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) for the complete security ana
 
 ## License
 
-MIT License. Built for the NITDA ICSC 2026 Universities Hackathon.
+Licensed under the Apache License, Version 2.0 (the "License"). See [LICENSE](LICENSE) for details.

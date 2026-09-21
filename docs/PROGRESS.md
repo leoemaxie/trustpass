@@ -242,15 +242,18 @@ Copy this template for each new session:
 
 ---
 
-## Session 2026-09-21 — docker-compose-consolidation
+## Session 2026-09-21 — license-and-badges
 **Model:** Gemini 3.8 Flash
 **Checkpoint worked on:** 10 — Docker Compose, docs, threat model
 **Status:** acceptance criteria met
 **What changed:**
-- Added numbered service explanation comments to root `docker-compose.yml`.
-- Removed redundant `docker/docker-compose.yml` to standardize single root entry point.
+- Migrated licensing from MIT to Apache License 2.0.
+- Created root `LICENSE` containing the full text of Apache License, Version 2.0 with TrustPass copyright notice.
+- Added tech stack badges to `README.md` (Apache 2.0, Rust 1.85+, Go 1.22+, SvelteKit 5, Noir ZK Circuits, Docker Compose v2, PostgreSQL 15, Redis 7).
+- Updated `README.md` license section and badge links to point to the new Apache 2.0 `LICENSE`.
 **Open SPEC-GAP flags introduced this session:** none
 **Next step:** Ready for platform deployment and evaluation.
+
 
 
 
