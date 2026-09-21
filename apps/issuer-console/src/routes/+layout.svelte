@@ -15,7 +15,7 @@
 
 <nav class="tp-navbar" aria-label="Main navigation">
   <a href="/" class="tp-navbar__brand" aria-label="TrustPass Issuer Console">
-    <img src="/shared/assets/app_icon.png" alt="TrustPass" class="tp-navbar__logo" width="32" height="32" />
+    <img src="/shared/assets/branding/app_icon.png" alt="TrustPass" class="tp-navbar__logo" width="32" height="32" />
     <span class="tp-navbar__app-name">Issuer Console</span>
   </a>
   <ul class="tp-navbar__nav" role="list">

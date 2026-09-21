@@ -15,7 +15,7 @@
 <nav class="tp-navbar" aria-label="Main navigation">
   <a href="/" class="tp-navbar__brand" aria-label="TrustPass home">
     <img
-      src="/shared/assets/app_icon.png"
+      src="/shared/assets/branding/app_icon.png"
       alt="TrustPass logo"
       class="tp-navbar__logo"
       width="32"
