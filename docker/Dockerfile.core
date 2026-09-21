@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-COPY core/Cargo.toml core/Cargo.lock ./
+COPY core/Cargo.toml core/Cargo.lock* ./
 COPY core/src ./src
 COPY core/proto ./proto
 COPY core/circuits ./circuits

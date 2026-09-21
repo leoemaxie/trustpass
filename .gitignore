@@ -7,7 +7,6 @@
 # Rust build artifacts
 core/target/
 **/target/
-Cargo.lock
 
 # Go binaries & vendor
 services/bin/
