@@ -1,6 +1,6 @@
 # TrustPass Deployment Guide
 
-This document details the production deployment process for the TrustPass identity platform. It includes a comprehensive, real-world reference deployment on **Oracle Cloud Infrastructure (OCI)** using Docker Compose, reverse-proxy routing, and SSL termination.
+This document details the production deployment process for the TrustPass identity platform. It includes a comprehensive, reference deployment on **Oracle Cloud Infrastructure (OCI)** using Docker Compose, reverse-proxy routing, and SSL termination.
 
 ---
 

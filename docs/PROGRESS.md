@@ -242,17 +242,17 @@ Copy this template for each new session:
 
 ---
 
-## Session 2026-09-21 — license-and-badges
+## Session 2026-09-21 — holder-wallet-ssr-fix
 **Model:** Gemini 3.8 Flash
-**Checkpoint worked on:** 10 — Docker Compose, docs, threat model
+**Checkpoint worked on:** 9 — holder-wallet and issuer-console end to end
 **Status:** acceptance criteria met
 **What changed:**
-- Migrated licensing from MIT to Apache License 2.0.
-- Created root `LICENSE` containing the full text of Apache License, Version 2.0 with TrustPass copyright notice.
-- Added tech stack badges to `README.md` (Apache 2.0, Rust 1.85+, Go 1.22+, SvelteKit 5, Noir ZK Circuits, Docker Compose v2, PostgreSQL 15, Redis 7).
-- Updated `README.md` license section and badge links to point to the new Apache 2.0 `LICENSE`.
+- Fixed `TypeError: localStorage.getItem is not a function` during SSR in `apps/holder-wallet/src/lib/stores/wallet.js`.
+- Guarded `localStorage` read and write calls using `$app/environment.browser`.
+- Verified clean build and type check with `pnpm --filter trustpass-holder-wallet check` and `build`.
 **Open SPEC-GAP flags introduced this session:** none
 **Next step:** Ready for platform deployment and evaluation.
+
 
 
 
